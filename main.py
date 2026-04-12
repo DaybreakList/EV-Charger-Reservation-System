@@ -37,3 +37,32 @@ def reserve_charger(charger_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": f"จองหัวชาร์จ {charger.charger_name} สำเร็จ!"}
+
+@app.post("/Users/")
+def create_users(name: str, surname: str, email: str, password: str, db: Session = Depends(get_db)):
+    db_user = models.User(first_name=name, last_name=surname, email=email, password=password)
+    
+    try:
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+    except:
+        raise HTTPException(status_code=404, detail="Email already exist, Yeah I know this shouldn't happen. I just test the system.")
+    return db_user
+
+@app.get("/Users/")
+def get_users(db: Session = Depends(get_db)):
+    return db.query(models.User).all()
+
+@app.patch("/Users/")
+def set_users(user_id: int, new_role: str, db: Session = Depends(get_db)):
+    db_user =  db.query(models.User).filter(models.User.user_id == user_id).first()
+    #return db_user
+    try:
+        db_user.role = new_role
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+    except:
+        raise HTTPException(status_code=404, detail="Something went wrong.")
+    return db_user
