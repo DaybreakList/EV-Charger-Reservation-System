@@ -11,6 +11,8 @@ app = FastAPI()
 def read_root():
     return {"message": "EV-Charger Reservation System [ONLINE]"}
 
+# OLD, Will update. So model.py get rework!
+'''
 @app.post("/chargers/")
 def create_charger(name: str, db: Session = Depends(get_db)):
     db_charger = models.Charger(charger_name=name, status="available")
@@ -57,7 +59,7 @@ def get_users(db: Session = Depends(get_db)):
 @app.patch("/Users/")
 def set_users(user_id: int, new_role: str, db: Session = Depends(get_db)):
     db_user =  db.query(models.User).filter(models.User.user_id == user_id).first()
-    #return db_user
+    
     try:
         db_user.role = new_role
         db.add(db_user)
@@ -66,3 +68,18 @@ def set_users(user_id: int, new_role: str, db: Session = Depends(get_db)):
     except:
         raise HTTPException(status_code=404, detail="Something went wrong.")
     return db_user
+
+@app.post("/Customers/")
+def create_customers(phone_number: str, car_model: str, db: Session = Depends(get_db)):
+    db_customer = models.Customers(phone=phone_number, car_model=car_model)
+    try:
+        db.add(db_customer)
+        db.commit()
+        db.refresh(db_customer)
+    except:
+        raise HTTPException(status_code=404, detail="Something went wrong")
+    return db_customer
+@app.get("/Customers/")
+def get_customers(db: Session = Depends(get_db)):
+    return db.query(models.Customers).all()
+'''
