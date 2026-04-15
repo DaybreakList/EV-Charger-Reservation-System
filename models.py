@@ -1,3 +1,7 @@
+    # -- DISCLAIMER -- #
+# This file 'models.py' isn't using here because of 100%? Raw SQL.
+# But we're still keeping it since it might use for understanding something. I(FinaleNova) guess. LOL.
+
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
