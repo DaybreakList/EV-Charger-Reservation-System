@@ -1,1 +1,13 @@
-# EV-Charger-Reservation-System
+# EV Charger Reservation System
+Web application for Electric Vehicle User to reserve the charger and using services of charging their vehicle at specific staion that has been prepared in web dashboard.
+
+---
+
+## Main Tools
+| Categories | Tools |
+|---|---|
+| **Database** | Supabase |
+| **ORM** | Python(SQLAlchemy) |
+| **Web-Based** | FastAPI |
+
+> PS. This is for university project. So, it might...not good as expected.
