@@ -1,5 +1,5 @@
 # EV Charger Reservation System
-Web application for Electric Vehicle User to reserve the charger and using services of charging their vehicle at specific staion that has been prepared in web dashboard.
+Web application for Electric Vehicle User to reserve the charger and using services of charging their vehicle at specific station that has been prepared in web dashboard.
 
 ---
 
