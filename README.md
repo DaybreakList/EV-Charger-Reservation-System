@@ -7,7 +7,7 @@ Web application for Electric Vehicle User to reserve the charger and using servi
 | Categories | Tools |
 |---|---|
 | **Database** | Supabase |
-| **ORM** | Python(SQLAlchemy) |
-| **Web-Based** | FastAPI |
+| **Raw SQL** | Python(SQLAlchemy) |
+| **Swagger** | FastAPI |
 
 > PS. This is for university project. So, it might...not good as expected.
