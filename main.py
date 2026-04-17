@@ -3,9 +3,7 @@ from sqlalchemy.orm import Session
 import schemas
 from database import get_db
 from sqlalchemy import text
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 app = FastAPI()
 '''
 # Not use? #
@@ -39,7 +37,7 @@ def register_customer(user_data: schemas.UserCreate, cust_data: schemas.Customer
             "fname": user_data.first_name,
             "lname": user_data.last_name,
             "email": user_data.email,
-            "pwd": pwd_context.hash(user_data.password)
+            "pwd": bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         })
         new_user_id = result.fetchone()[0]
 
