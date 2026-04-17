@@ -2,6 +2,15 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
+# -- Login Schemas -- #
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    role: str
+
 # -- User Schemas -- #
 class UserBase(BaseModel):
     first_name: str
@@ -29,6 +38,12 @@ class Customer(BaseModel):
     car_model: str
     class Config:
         from_attributes = True
+
+# -- Manager Schemas -- #
+class ManagerCreate(BaseModel):
+    phone: str
+    tax_id: str
+    invite_code: str
 
 # -- Station Schemas -- #
 class StationResponse(BaseModel):
