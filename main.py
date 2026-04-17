@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 import schemas
 from database import get_db
 from sqlalchemy import text
+from passlib.context import CryptContext
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = FastAPI()
 '''
 # Not use? #
@@ -14,7 +16,7 @@ def get_db():
     finally:
         db.close()
 '''
-@app.post("register/customer/")
+@app.post("/register/customer/")
 def register_customer(user_data: schemas.UserCreate, cust_data: schemas.CustomerCreate, db: Session = Depends(get_db)):
 # -- Email Check (SELECT) -- #
     sql_check = text("""
@@ -37,7 +39,7 @@ def register_customer(user_data: schemas.UserCreate, cust_data: schemas.Customer
             "fname": user_data.first_name,
             "lname": user_data.last_name,
             "email": user_data.email,
-            "pwd": user_data.password # HASH before real use.
+            "pwd": pwd_context.hash(user_data.password)
         })
         new_user_id = result.fetchone()[0]
 
@@ -74,3 +76,4 @@ def get_all_stations(db: Session = Depends(get_db)):
     result = db.execute(query)
     stations = result.mappings().all()
     return stations
+
