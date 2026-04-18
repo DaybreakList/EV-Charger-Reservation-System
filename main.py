@@ -153,3 +153,61 @@ def get_all_stations(db: Session = Depends(get_db)):
     stations = result.mappings().all()
     return stations
 
+@app.get("/stations/nearby", response_model=list[schemas.StationNearby])
+def get_nearby_stations(lat: float ,lng: float, db: Session = Depends(get_db)):
+    # Haversine formula to calculate distance between two lat/lng points
+    query = text("""SELECT station_id, name, address, status,
+                 ROUND(CAST(
+                    6371 * ACOS(
+                        COS(RADIANS(:lat)) * COS(RADIANS(latitude)) * 
+                        COS(RADIANS(longitude) - RADIANS(:lng)) + 
+                        SIN(RADIANS(:lat)) * SIN(RADIANS(latitude))
+                    )
+                    AS NUMERIC),2) AS distance_km
+                FROM stations WHERE status = 'Active'
+                AND latitude IS NOT NULL AND longitude IS NOT NULL
+                ORDER BY distance_km ASC
+                """)
+    result = db.execute(query, {"lat": lat, "lng": lng})
+    stations = result.mappings().all()
+    return stations
+
+@app.post("/charger-types/")
+def add_charger_type(charger_type: schemas.ChargerTypeCreate, db: Session = Depends(get_db)):
+    sql = text("""
+        INSERT INTO charger_types (type_name, max_power_kw, charging_standard)
+        VALUES (:type_name, :max_power_kw, :charging_standard)
+        Returning type_id
+    """)
+    result = db.execute(sql, {
+        "type_name": charger_type.type_name,
+        "max_power_kw": charger_type.max_power_kw,
+        "charging_standard": charger_type.charging_standard
+    })
+
+    new_type_id = result.fetchone()[0]
+    db.commit()
+    return {"Status": "Success", "type_id": new_type_id}
+
+@app.post("/stations/")
+def add_station(station: schemas.StationBase, manager_id: int, db: Session = Depends(get_db)):
+    try:
+        sql = text("""
+            INSERT INTO stations (manager_id, name, address, latitude, longitude, status)
+            VALUES (:manager_id, :name, :address, :lat, :lng, 'Active')
+            RETURNING station_id
+        """)
+        result = db.execute(sql, {
+            "manager_id": manager_id,
+            "name": station.name,
+            "address": station.address,
+            "lat": station.latitude,
+            "lng": station.longitude
+        })
+        new_station_id = result.fetchone()[0]
+        db.commit()
+        return {"Status": "Success", "station_id": new_station_id}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

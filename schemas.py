@@ -67,3 +67,37 @@ class Station(StationBase):
     status: str
     class Config:
         from_attributes = True
+
+class StationNearby(BaseModel):
+    station_id: int
+    name: str
+    address: Optional[str]
+    status: str
+    distance_km: Optional[float]
+    class Config:
+        from_attributes = True
+
+# -- Charger Schemas -- #
+
+class ChargerType(BaseModel):
+    type_id: int
+    type_name: str
+    max_power_kw: float
+    charging_standard: str
+    class Config:
+        from_attributes = True
+
+class ChargerTypeResponse(BaseModel):
+    type_id: int
+    type_name: str
+    max_power_kw: float
+    charging_standard: str
+    class Config:
+        from_attributes = True
+
+class ChargerTypeCreate(BaseModel):
+    type_name: str
+    max_power_kw: float
+    charging_standard: str
+
+
