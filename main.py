@@ -211,3 +211,51 @@ def add_station(station: schemas.StationBase, manager_id: int, db: Session = Dep
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/stations/{station_id}/chargers/")
+def add_charger_to_station(station_id: int, charger: schemas.ChargerCreate, db: Session = Depends(get_db)):
+    ## -- Check if station exists -- ##
+    sql_check = text("""
+        SELECT station_id
+        FROM stations
+        WHERE station_id = :station_id
+    """)
+    result = db.execute(sql_check, {"station_id": station_id}).fetchone()
+    if not result:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    try:
+        sql = text("""
+                INSERT INTO chargers (station_id, type_id, rate_per_kwh,status)
+                VALUES (:station_id, :type_id, :rate_per_kwh, 'Available')
+                RETURNING charger_id
+        """)
+        result = db.execute(sql, {
+            "station_id": station_id,
+            "type_id": charger.type_id,
+            "rate_per_kwh": charger.rate_per_kwh
+        })
+        new_charger_id = result.fetchone()[0]
+        db.commit()
+        return {"Status": "Success", "charger_id": new_charger_id}
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/station/{station_id}/chargers/", response_model=list[schemas.ChargerResponse])
+def get_chargers_by_station(station_id: int, db: Session = Depends(get_db)):
+    query = text("""
+                SELECT
+                    c.charger_id,
+                    c.type_id,
+                    ct.type_name,
+                    ct.max_power_kw,
+                    ct.charging_standard,
+                    c.rate_per_kwh,
+                    c.status
+                FROM chargers c JOIN charger_types ct ON c.type_id = ct.type_id
+                WHERE c.station_id = :station_id
+            """)
+    result = db.execute(query, {"station_id": station_id})
+    return result.mappings().all()

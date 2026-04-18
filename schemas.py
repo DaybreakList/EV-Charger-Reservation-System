@@ -100,4 +100,18 @@ class ChargerTypeCreate(BaseModel):
     max_power_kw: float
     charging_standard: str
 
+class ChargerCreate(BaseModel):
+    type_id: int
+    rate_per_kwh: float
+
+class ChargerResponse(BaseModel):
+    charger_id: int
+    type_id: int
+    type_name: str
+    max_power_kw: float
+    charging_standard: str
+    rate_per_kwh: float
+    status: str
+    class Config:
+        from_attributes = True
 
