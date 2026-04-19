@@ -115,3 +115,21 @@ class ChargerResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# -- Booking Schemas -- #
+class BookingCreate(BaseModel):
+    cust_id: int
+    charger_id: int
+    start_time: datetime
+    end_time: datetime
+
+class BookingResponse(BaseModel):
+    booking_id: int
+    cust_id: int
+    charger_id: int
+    start_time: datetime
+    end_time: datetime
+    total_kwh: Optional[float]
+    rate_per_kwh_snapshot: float
+    booking_status: str
+    class Config:
+        from_attributes = True

@@ -1,11 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 import schemas
-from database import get_db
+from database import get_db, SessionLocal
 from sqlalchemy import text
 import bcrypt
 from jose import jwt #for Create JWT token
 from datetime import datetime, timedelta #for JWT expiration
+from zoneinfo import ZoneInfo
+
+TZ_BANGKOK = ZoneInfo("Asia/Bangkok")
+from apscheduler.schedulers.background import BackgroundScheduler
 
 MANAGER_INVITE_CODE = "ajarnjack"
 SECRET_KEY = "ev_charger_secret_2024"
@@ -21,6 +25,47 @@ def get_db():
     finally:
         db.close()
 '''
+
+def auto_complete_bookings():
+    db = SessionLocal()
+    try:
+        sql_find = text("""
+            SELECT b.booking_id, b.start_time, b.end_time,
+                   b.rate_per_kwh_snapshot, ct.max_power_kw
+            FROM bookings b
+            JOIN chargers c ON b.charger_id = c.charger_id
+            JOIN charger_types ct ON c.type_id = ct.type_id
+            WHERE b.booking_status = 'Pending'
+            AND b.end_time < NOW()
+        """)
+        expired = db.execute(sql_find).fetchall()
+
+        for row in expired:
+            booking_id, start_time, end_time, rate, max_power_kw = row
+            duration_hours = (end_time - start_time).total_seconds() / 3600
+            total_kwh = round(float(max_power_kw) * duration_hours, 2)
+            amount = round(total_kwh * float(rate), 2)
+
+            db.execute(text("""
+                UPDATE bookings SET booking_status = 'Completed', total_kwh = :total_kwh
+                WHERE booking_id = :booking_id
+            """), {"total_kwh": total_kwh, "booking_id": booking_id})
+
+            db.execute(text("""
+                INSERT INTO payments (booking_id, amount, payment_status)
+                VALUES (:booking_id, :amount, 'Pending')
+            """), {"booking_id": booking_id, "amount": amount})
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Scheduler error: {e}")
+    finally:
+        db.close()
+# Start the scheduler to auto-complete bookings every minute #
+scheduler = BackgroundScheduler()
+scheduler.add_job(auto_complete_bookings, "interval", minutes=1)
+scheduler.start()
 
 @app.post("/login/", response_model=schemas.TokenResponse)
 def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
@@ -259,3 +304,109 @@ def get_chargers_by_station(station_id: int, db: Session = Depends(get_db)):
             """)
     result = db.execute(query, {"station_id": station_id})
     return result.mappings().all()
+
+@app.post("/bookings/", response_model=schemas.BookingResponse)
+def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
+    # -- Check charger availability and status = Available -- #
+    sql_check = text("""
+        SELECT charger_id, status, rate_per_kwh
+        FROM chargers
+        WHERE charger_id = :charger_id
+    """)
+    charger = db.execute(sql_check, {"charger_id": booking.charger_id}).fetchone()
+    if not charger:
+        raise HTTPException(status_code=404, detail="Charger not found")
+    if charger[1] == "Out of Service":
+        raise HTTPException(status_code=400, detail="Charger is out of service")
+    
+    # -- Check for overlapping bookings -- #
+    sql_overlap = text("""
+        SELECT booking_id
+        FROM bookings
+        WHERE charger_id = :charger_id
+        AND booking_status NOT IN ('Completed', 'Cancelled')
+        AND start_time < :end_time
+        AND end_time > :start_time
+    """)
+    # -- แปลงเวลาจาก user เป็นเวลาไทย -- #
+    start_time = booking.start_time.replace(tzinfo=TZ_BANGKOK)
+    end_time = booking.end_time.replace(tzinfo=TZ_BANGKOK)
+
+    overlap = db.execute(sql_overlap, {
+        "charger_id": booking.charger_id,
+        "start_time": start_time,
+        "end_time": end_time
+    }).fetchone()
+    if overlap:
+        raise HTTPException(status_code=400, detail="Charger is already booked for the selected time slot")
+
+    try:
+        # -- Create booking -- #
+        sql_book = text("""
+            INSERT INTO bookings (cust_id, charger_id, start_time, end_time, rate_per_kwh_snapshot, booking_status)
+            VALUES (:cust_id, :charger_id, :start_time, :end_time, :rate, 'Pending')
+            RETURNING booking_id, cust_id, charger_id, start_time, end_time, total_kwh, rate_per_kwh_snapshot, booking_status
+        """)
+        result = db.execute(sql_book, {
+            "cust_id": booking.cust_id,
+            "charger_id": booking.charger_id,
+            "start_time": start_time,
+            "end_time": end_time,
+            "rate": charger[2]
+        })
+
+        new_booking = result.mappings().fetchone()
+        db.commit()
+        return new_booking
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.patch("/bookings/{booking_id}/cancel")
+def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
+    # -- Check if booking exists and is cancellable -- #
+    sql_check = text("""
+        SELECT booking_id, booking_status
+        FROM bookings
+        WHERE booking_id = :booking_id
+    """)
+    booking = db.execute(sql_check, {"booking_id": booking_id}).fetchone()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # -- Checked if booking can be cancelled (e.g. only if status is Pending) -- #
+    if booking[1] != "Pending":
+        raise HTTPException(status_code=400, detail="Only pending bookings can be cancelled")
+    
+    # -- Update booking status to Cancelled -- #
+    sql_cancel = text("""
+        UPDATE bookings
+        SET booking_status = 'Cancelled'
+        WHERE booking_id = :booking_id
+    """)
+    db.execute(sql_cancel, {"booking_id": booking_id})
+    db.commit()
+    return {"Status": "Success", "message": "Booking cancelled successfully"}
+
+@app.get("/bookings/history/{cust_id}")
+def get_booking_history(cust_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT
+            b.booking_id,
+            b.charger_id,
+            s.name AS station_name,
+            b.start_time,
+            b.end_time,
+            b.total_kwh,
+            b.rate_per_kwh_snapshot,
+            b.booking_status
+        FROM bookings b
+        JOIN chargers c ON b.charger_id = c.charger_id
+        JOIN stations s ON c.station_id = s.station_id
+        WHERE b.cust_id = :cust_id
+        ORDER BY b.start_time DESC
+    """)
+    result = db.execute(query, {"cust_id": cust_id})
+    return result.mappings().all()
+
