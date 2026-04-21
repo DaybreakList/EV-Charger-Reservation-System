@@ -413,3 +413,27 @@ def get_booking_history(cust_id: int, db: Session = Depends(get_db)):
     result = db.execute(query, {"cust_id": cust_id})
     return result.mappings().all()
 
+@app.patch("/chargers/{charger_id}/status")
+def update_charger_status(charger_id: int, new_status: str, manager_id: int, db: Session = Depends(get_db)):
+    ## -- Check if charger is in station that belongs to manager -- ##
+    sql_check = text("""
+        SELECT c.charger_id
+        FROM chargers c
+        JOIN stations s ON c.station_id = s.station_id
+        WHERE c.charger_id = :charger_id
+        AND s.manager_id = :manager_id
+    """)
+    result = db.execute(sql_check, {"charger_id": charger_id, "manager_id": manager_id}).fetchone()
+    if not result:
+        raise HTTPException(status_code=403, detail="Charger not found or you don't have permission to update this charger")
+
+    # -- Check status is valid -- #
+    if new_status not in ["Available", "Out of Service"]:
+        raise HTTPException(status_code=400, detail="Status must be 'Available' or 'Out of Service'")
+
+    # -- Update charger status -- #
+    db.execute(text("""
+        UPDATE chargers SET status = :new_status WHERE charger_id = :charger_id
+    """), {"new_status": new_status, "charger_id": charger_id})
+    db.commit()
+    return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
