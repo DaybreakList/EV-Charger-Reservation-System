@@ -393,23 +393,51 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
 @app.get("/bookings/history/{cust_id}")
 def get_booking_history(cust_id: int, db: Session = Depends(get_db)):
     query = text("""
-        SELECT
-            b.booking_id,
-            b.charger_id,
-            s.name AS station_name,
-            b.start_time,
-            b.end_time,
-            b.total_kwh,
-            b.rate_per_kwh_snapshot,
-            b.booking_status
-        FROM bookings b
-        JOIN chargers c ON b.charger_id = c.charger_id
-        JOIN stations s ON c.station_id = s.station_id
-        WHERE b.cust_id = :cust_id
-        ORDER BY b.start_time DESC
-    """)
+    SELECT
+        b.booking_id,
+        b.charger_id,
+        s.name AS station_name,
+        b.start_time AT TIME ZONE 'Asia/Bangkok' AS start_time,
+        b.end_time AT TIME ZONE 'Asia/Bangkok' AS end_time,
+        b.total_kwh,
+        b.rate_per_kwh_snapshot,
+        b.booking_status,
+        p.amount,
+        p.payment_status
+    FROM bookings b
+    JOIN chargers c ON b.charger_id = c.charger_id
+    JOIN stations s ON c.station_id = s.station_id
+    LEFT JOIN payments p ON b.booking_id = p.booking_id
+    WHERE b.cust_id = :cust_id
+    ORDER BY b.start_time DESC
+""")
     result = db.execute(query, {"cust_id": cust_id})
     return result.mappings().all()
+
+@app.patch("/chargers/{charger_id}/status")
+def update_charger_status(charger_id: int, new_status: str, manager_id: int, db: Session = Depends(get_db)):
+    ## -- Check if charger is in station that belongs to manager -- ##
+    sql_check = text("""
+        SELECT c.charger_id
+        FROM chargers c
+        JOIN stations s ON c.station_id = s.station_id
+        WHERE c.charger_id = :charger_id
+        AND s.manager_id = :manager_id
+    """)
+    result = db.execute(sql_check, {"charger_id": charger_id, "manager_id": manager_id}).fetchone()
+    if not result:
+        raise HTTPException(status_code=403, detail="Charger not found or you don't have permission to update this charger")
+
+    # -- Check status is valid -- #
+    if new_status not in ["Available", "Out of Service"]:
+        raise HTTPException(status_code=400, detail="Status must be 'Available' or 'Out of Service'")
+
+    # -- Update charger status -- #
+    db.execute(text("""
+        UPDATE chargers SET status = :new_status WHERE charger_id = :charger_id
+    """), {"new_status": new_status, "charger_id": charger_id})
+    db.commit()
+    return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
 
 @app.get("/chargers/{charger_id}/available-slots")
 def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)):
