@@ -392,21 +392,24 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
 @app.get("/bookings/history/{cust_id}")
 def get_booking_history(cust_id: int, db: Session = Depends(get_db)):
     query = text("""
-        SELECT
-            b.booking_id,
-            b.charger_id,
-            s.name AS station_name,
-            b.start_time,
-            b.end_time,
-            b.total_kwh,
-            b.rate_per_kwh_snapshot,
-            b.booking_status
-        FROM bookings b
-        JOIN chargers c ON b.charger_id = c.charger_id
-        JOIN stations s ON c.station_id = s.station_id
-        WHERE b.cust_id = :cust_id
-        ORDER BY b.start_time DESC
-    """)
+    SELECT
+        b.booking_id,
+        b.charger_id,
+        s.name AS station_name,
+        b.start_time,
+        b.end_time,
+        b.total_kwh,
+        b.rate_per_kwh_snapshot,
+        b.booking_status,
+        p.amount,
+        p.payment_status
+    FROM bookings b
+    JOIN chargers c ON b.charger_id = c.charger_id
+    JOIN stations s ON c.station_id = s.station_id
+    LEFT JOIN payments p ON b.booking_id = p.booking_id
+    WHERE b.cust_id = :cust_id
+    ORDER BY b.start_time DESC
+""")
     result = db.execute(query, {"cust_id": cust_id})
     return result.mappings().all()
 
