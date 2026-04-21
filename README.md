@@ -11,4 +11,5 @@ Web application for Electric Vehicle User to reserve the charger and using servi
 | **Swagger** | FastAPI |
 
 > PS. This is for university project. So, it might...not good as expected.
+---
 > PSS. We do our best!
