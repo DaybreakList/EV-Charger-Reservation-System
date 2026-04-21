@@ -439,6 +439,7 @@ def update_charger_status(charger_id: int, new_status: str, manager_id: int, db:
     db.commit()
     return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
 
+
 @app.get("/chargers/{charger_id}/available-slots")
 def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)):
     # ดึง booking ที่มีอยู่แล้วในวันนี้
