@@ -1,19 +1,4 @@
--- =====================================================================
--- EV Charger Reservation System - Table Creation Script
--- ตรงกับ Supabase EV Charger Reservation System project 100%
--- =====================================================================
- 
--- DROP: Only for testing period. (Not Full Release)
-DROP TABLE IF EXISTS payments;
-DROP TABLE IF EXISTS bookings;
-DROP TABLE IF EXISTS chargers;
-DROP TABLE IF EXISTS charger_types;
-DROP TABLE IF EXISTS stations;
-DROP TABLE IF EXISTS managers;
-DROP TABLE IF EXISTS customers;
-DROP TABLE IF EXISTS users;
- 
- 
+-- This create_table.sql will use for CREATE Table on Supabase. ##Direct command on Supabase.
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -78,7 +63,7 @@ CREATE TABLE bookings (
 CREATE TABLE payments (
     booking_id SERIAL PRIMARY KEY REFERENCES bookings(booking_id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL,
-    payment_method VARCHAR(50), -- Credit Card, QR Code, Wallet
+    payment_method VARCHAR(50), -- Credit Card, QR Code, Wallet | EDITED: Stil considering about this.
     payment_status VARCHAR(20) DEFAULT 'Pending',
     payment_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
