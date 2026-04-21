@@ -5,7 +5,7 @@ from database import get_db, SessionLocal
 from sqlalchemy import text
 import bcrypt
 from jose import jwt #for Create JWT token
-from datetime import datetime, timedelta #for JWT expiration
+from datetime import datetime, timedelta, date, time #for JWT expiration
 from zoneinfo import ZoneInfo
 
 TZ_BANGKOK = ZoneInfo("Asia/Bangkok")
@@ -14,6 +14,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 MANAGER_INVITE_CODE = "ajarnjack"
 SECRET_KEY = "ev_charger_secret_2024"
 ALGORITHM = "HS256"
+SLOT_DURATION_MINUTES = 45
 
 app = FastAPI()
 '''
@@ -437,3 +438,39 @@ def update_charger_status(charger_id: int, new_status: str, manager_id: int, db:
     """), {"new_status": new_status, "charger_id": charger_id})
     db.commit()
     return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
+
+@app.get("/chargers/{charger_id}/available-slots")
+def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)):
+    # ดึง booking ที่มีอยู่แล้วในวันนี้
+    sql = text("""
+        SELECT start_time, end_time FROM bookings
+        WHERE charger_id = charger_id
+        AND DATE(start_time AT TIME ZONE 'Asia/Bangkok') = :date
+        AND booking_status NOT IN ('Cancelled', 'Completed')
+    """)
+    booked = db.execute(sql, {"charger_id": charger_id, "date": date}).fetchall()
+
+    # General Slot ทั้งหมดในวันนี้ ตั้งแต่ 06:00 ถึง 23:00
+    from datetime import datetime, timedelta
+    slots = []
+    slot_start = datetime.combine(date, time(6, 0), tzinfo=TZ_BANGKOK)
+    day_end = datetime.combine(date, time(23, 0), tzinfo=TZ_BANGKOK)
+
+    while slot_start + timedelta(minutes=SLOT_DURATION_MINUTES) <= day_end:
+        slot_end = slot_start + timedelta(minutes=SLOT_DURATION_MINUTES)
+
+        # เช็คว่า slot นี้ชนกับ booking อันไหนหรือไม่
+        is_taken = any(
+            slot_start < b[1] and slot_end > b[0]
+            for b in booked
+        )
+
+        slots.append({
+            "start_time": slot_start.isoformat(),
+            "end_time": slot_end.isoformat(),
+            "available": not is_taken
+        })
+
+        slot_start = slot_end #Slot ถัดไป
+    
+    return slots
