@@ -120,7 +120,6 @@ class BookingCreate(BaseModel):
     cust_id: int
     charger_id: int
     start_time: datetime
-    end_time: datetime
 
 class BookingResponse(BaseModel):
     booking_id: int

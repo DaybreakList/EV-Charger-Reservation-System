@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import schemas
 from database import get_db, SessionLocal
@@ -17,6 +18,13 @@ ALGORITHM = "HS256"
 SLOT_DURATION_MINUTES = 45
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 '''
 # Not use? #
 def get_db():
@@ -331,7 +339,16 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
     """)
     # -- แปลงเวลาจาก user เป็นเวลาไทย -- #
     start_time = booking.start_time.replace(tzinfo=TZ_BANGKOK)
-    end_time = booking.end_time.replace(tzinfo=TZ_BANGKOK)
+    end_time = start_time + timedelta(minutes=SLOT_DURATION_MINUTES)
+
+    # -- เช็คว่า start_time ตรงกับ slot -- #
+    total_minutes = start_time.hour * 60 + start_time.minute
+    if total_minutes % SLOT_DURATION_MINUTES != 0:
+        raise HTTPException(status_code=400, detail="start_time must align to a 45-minute slot (e.g. 00:00, 00:45, 01:30...)")
+
+    # -- เช็คว่า start_time ไม่อยู่ในอดีต -- #
+    if start_time < datetime.now(tz=TZ_BANGKOK):
+        raise HTTPException(status_code=400, detail="Cannot book a slot in the past")
 
     overlap = db.execute(sql_overlap, {
         "charger_id": booking.charger_id,
@@ -444,17 +461,15 @@ def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)
     # ดึง booking ที่มีอยู่แล้วในวันนี้
     sql = text("""
         SELECT start_time, end_time FROM bookings
-        WHERE charger_id = charger_id
+        WHERE charger_id = :charger_id
         AND DATE(start_time AT TIME ZONE 'Asia/Bangkok') = :date
         AND booking_status NOT IN ('Cancelled', 'Completed')
     """)
     booked = db.execute(sql, {"charger_id": charger_id, "date": date}).fetchall()
 
-    # General Slot ทั้งหมดในวันนี้ ตั้งแต่ 06:00 ถึง 23:00
-    from datetime import datetime, timedelta
     slots = []
-    slot_start = datetime.combine(date, time(6, 0), tzinfo=TZ_BANGKOK)
-    day_end = datetime.combine(date, time(23, 0), tzinfo=TZ_BANGKOK)
+    slot_start = datetime.combine(date, time(0, 0), tzinfo=TZ_BANGKOK)
+    day_end = datetime.combine(date, time(0, 0), tzinfo=TZ_BANGKOK) + timedelta(days=1)
 
     while slot_start + timedelta(minutes=SLOT_DURATION_MINUTES) <= day_end:
         slot_end = slot_start + timedelta(minutes=SLOT_DURATION_MINUTES)
