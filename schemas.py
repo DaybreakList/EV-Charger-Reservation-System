@@ -80,6 +80,13 @@ class StationNearby(BaseModel):
     class Config:
         from_attributes = True
 
+class StationUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    status: Optional[str] = None
+    
 # -- Charger Schemas -- #
 
 class ChargerType(BaseModel):
@@ -106,6 +113,11 @@ class ChargerTypeCreate(BaseModel):
 class ChargerCreate(BaseModel):
     type_id: int
     rate_per_kwh: float
+
+class ChargerUpdate(BaseModel):
+    type_id: Optional[int] = None
+    rate_per_kwh: Optional[float] = None
+    status: Optional[str] = None
 
 class ChargerResponse(BaseModel):
     charger_id: int

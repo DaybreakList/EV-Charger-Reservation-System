@@ -236,6 +236,23 @@ def get_all_stations(db: Session = Depends(get_db)):
     stations = result.mappings().all()
     return stations
 
+@app.get("/managers/{manager_id}/stations", response_model=list[schemas.StationResponse])
+def get_stations_by_manager(manager_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT
+            s.station_id,
+            s.name,
+            s.address,
+            s.status,
+            u.first_name || ' ' || u.last_name AS manager_name
+        FROM stations s
+        LEFT JOIN managers m ON s.manager_id = m.manager_id
+        LEFT JOIN users u ON m.user_id = u.user_id
+        WHERE s.manager_id = :manager_id
+    """)
+    result = db.execute(query, {"manager_id": manager_id})
+    return result.mappings().all()
+
 @app.get("/stations/nearby", response_model=list[schemas.StationNearby])
 def get_nearby_stations(lat: float, lng: float, db: Session = Depends(get_db)):
     # -- ดึงสถานีทั้งหมดที่มีพิกัด -- #
@@ -493,30 +510,97 @@ def get_booking_history(cust_id: int, db: Session = Depends(get_db)):
     result = db.execute(query, {"cust_id": cust_id})
     return result.mappings().all()
 
-@app.patch("/chargers/{charger_id}/status")
-def update_charger_status(charger_id: int, new_status: str, manager_id: int, db: Session = Depends(get_db)):
-    ## -- Check if charger is in station that belongs to manager -- ##
+@app.patch("/stations/{station_id}")
+def update_station(station_id: int, manager_id: int, station: schemas.StationUpdate, db: Session = Depends(get_db)):
+    # -- Check ownership -- #
     sql_check = text("""
-        SELECT c.charger_id
-        FROM chargers c
-        JOIN stations s ON c.station_id = s.station_id
-        WHERE c.charger_id = :charger_id
-        AND s.manager_id = :manager_id
+        SELECT station_id FROM stations
+        WHERE station_id = :station_id AND manager_id = :manager_id
     """)
-    result = db.execute(sql_check, {"charger_id": charger_id, "manager_id": manager_id}).fetchone()
-    if not result:
-        raise HTTPException(status_code=403, detail="Charger not found or you don't have permission to update this charger")
+    owned = db.execute(sql_check, {"station_id": station_id, "manager_id": manager_id}).fetchone()
+    if not owned:
+        raise HTTPException(status_code=403, detail="Station not found or you don't have permission")
 
-    # -- Check status is valid -- #
-    if new_status not in ["Available", "Out of Service"]:
+    # -- Build dynamic SET clause from non-null fields -- #
+    updates = station.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    if "status" in updates and updates["status"] not in ["Active", "Inactive"]:
+        raise HTTPException(status_code=400, detail="Status must be 'Active' or 'Inactive'")
+
+    set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+    sql_update = text(f"UPDATE stations SET {set_clause} WHERE station_id = :station_id")
+
+    try:
+        db.execute(sql_update, {**updates, "station_id": station_id})
+        db.commit()
+        return {"Status": "Success", "station_id": station_id, "updated": updates}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/chargers/{charger_id}")
+def update_charger(charger_id: int, manager_id: int, charger: schemas.ChargerUpdate, db: Session = Depends(get_db)):
+    # -- Check ownership via station -- #
+    sql_check = text("""
+        SELECT c.charger_id FROM chargers c
+        JOIN stations s ON c.station_id = s.station_id
+        WHERE c.charger_id = :charger_id AND s.manager_id = :manager_id
+    """)
+    owned = db.execute(sql_check, {"charger_id": charger_id, "manager_id": manager_id}).fetchone()
+    if not owned:
+        raise HTTPException(status_code=403, detail="Charger not found or you don't have permission")
+
+    updates = charger.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    if "status" in updates and updates["status"] not in ["Available", "Out of Service"]:
         raise HTTPException(status_code=400, detail="Status must be 'Available' or 'Out of Service'")
 
-    # -- Update charger status -- #
-    db.execute(text("""
-        UPDATE chargers SET status = :new_status WHERE charger_id = :charger_id
-    """), {"new_status": new_status, "charger_id": charger_id})
-    db.commit()
-    return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
+    set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+    sql_update = text(f"UPDATE chargers SET {set_clause} WHERE charger_id = :charger_id")
+
+    try:
+        db.execute(sql_update, {**updates, "charger_id": charger_id})
+        db.commit()
+        return {"Status": "Success", "charger_id": charger_id, "updated": updates}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/chargers/{charger_id}")
+def delete_charger(charger_id: int, manager_id: int, db: Session = Depends(get_db)):
+    # -- Check ownership via station -- #
+    sql_check = text("""
+        SELECT c.charger_id FROM chargers c
+        JOIN stations s ON c.station_id = s.station_id
+        WHERE c.charger_id = :charger_id AND s.manager_id = :manager_id
+    """)
+    owned = db.execute(sql_check, {"charger_id": charger_id, "manager_id": manager_id}).fetchone()
+    if not owned:
+        raise HTTPException(status_code=403, detail="Charger not found or you don't have permission")
+
+    # -- Block delete if bookings exist on this charger -- #
+    sql_bookings = text("""
+        SELECT COUNT(*) FROM bookings
+        WHERE charger_id = :charger_id
+    """)
+    count = db.execute(sql_bookings, {"charger_id": charger_id}).scalar()
+    if count and count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete: {count} booking(s) exist. Consider updating status to 'Out of Service' instead."
+        )
+
+    try:
+        db.execute(text("DELETE FROM chargers WHERE charger_id = :charger_id"), {"charger_id": charger_id})
+        db.commit()
+        return {"Status": "Success", "message": f"Charger {charger_id} deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.patch("/payments/{booking_id}/pay")
 def pay_payment(booking_id: int, payment: schemas.PaymentRequest, db: Session = Depends(get_db)):
