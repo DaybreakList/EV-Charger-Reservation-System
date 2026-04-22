@@ -5,7 +5,8 @@ CREATE TABLE users (
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(20) CHECK (role IN ('customer', 'manager')) NOT NULL,
+    role VARCHAR(20) NOT NULL
+        CHECK (role IN ('customer', 'manager')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
  
@@ -30,7 +31,8 @@ CREATE TABLE stations (
     address TEXT,
     latitude DECIMAL(10, 8),
     longitude DECIMAL(11, 8),
-    status VARCHAR(20) DEFAULT 'Active',
+    status VARCHAR(20) NOT NULL DEFAULT 'Active'
+        CHECK (status IN ('Active', 'Inactive')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
  
@@ -38,7 +40,8 @@ CREATE TABLE charger_types (
     type_id SERIAL PRIMARY KEY,
     type_name VARCHAR(50) NOT NULL,
     max_power_kw DECIMAL(5, 2),
-    charging_standard VARCHAR(10) CHECK (charging_standard IN ('AC', 'DC'))
+    charging_standard VARCHAR(10)
+        CHECK (charging_standard IN ('AC', 'DC'))
 );
  
 CREATE TABLE chargers (
@@ -47,6 +50,7 @@ CREATE TABLE chargers (
     type_id INTEGER REFERENCES charger_types(type_id),
     rate_per_kwh DECIMAL(10, 2) NOT NULL,
     status VARCHAR(20) DEFAULT 'Available' -- Available, Out of Service
+        CHECK (status IN ('Available', 'Out of Service')) 
 );
  
 CREATE TABLE bookings (
@@ -56,14 +60,17 @@ CREATE TABLE bookings (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     total_kwh DECIMAL(10, 2),
-    booking_status VARCHAR(20) DEFAULT 'Pending', -- Pending, Confirmed, Completed, Cancelled
+    booking_status VARCHAR(20) DEFAULT 'Pending' -- Pending, Confirmed, Completed, Cancelled
+        CHECK (booking_status IN ('Pending', 'Confirmed', 'Completed', 'Cancelled')),
     rate_per_kwh_snapshot NUMERIC
 );
  
 CREATE TABLE payments (
     booking_id INTEGER PRIMARY KEY REFERENCES bookings(booking_id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL,
-    payment_method VARCHAR(50), -- Credit Card, QR Code, Wallet | EDITED: Stil considering about this.
-    payment_status VARCHAR(20) DEFAULT 'Pending',
+    payment_method VARCHAR(50)
+        CHECK (payment_method IN ('Prompt Pay', 'Credit Card', 'Debit Card')), -- Prompt Pay, Credit Card, Debit Card
+    payment_status VARCHAR(20) DEFAULT 'Pending'
+        CHECK (payment_status IN ('Pending', 'Paid')),
     payment_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
