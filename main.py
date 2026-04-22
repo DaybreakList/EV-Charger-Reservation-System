@@ -88,6 +88,24 @@ def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
     if not bcrypt.checkpw(login_data.password.encode('utf-8'), user[1].encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
+    # -- Lookup profile id by role -- #
+    cust_id = None
+    manager_id = None
+    if user[2] == "customer":
+        profile = db.execute(
+            text("SELECT cust_id FROM customers WHERE user_id = :uid"),
+            {"uid": user[0]}
+        ).fetchone()
+        if profile:
+            cust_id = profile[0]
+    elif user[2] == "manager":
+        profile = db.execute(
+            text("SELECT manager_id FROM managers WHERE user_id = :uid"),
+            {"uid": user[0]}
+        ).fetchone()
+        if profile:
+            manager_id = profile[0]
+
     # -- Create JWT token -- #
     token_data = {
         "user_id": user[0],
@@ -96,7 +114,12 @@ def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
     }
 
     token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM) # Create JWT token form token_data, SECRET_KEY and ALGORITHM
-    return {"access_token": token, "role": user[2]} # Return token and role to client
+    return {
+        "access_token": token,
+        "role": user[2],
+        "cust_id": cust_id,
+        "manager_id": manager_id
+    }
 
 @app.post("/register/customer/")
 def register_customer(user_data: schemas.UserCreate, cust_data: schemas.CustomerCreate, db: Session = Depends(get_db)):
@@ -455,6 +478,38 @@ def update_charger_status(charger_id: int, new_status: str, manager_id: int, db:
     """), {"new_status": new_status, "charger_id": charger_id})
     db.commit()
     return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
+
+@app.patch("/payments/{payment_id}/pay")
+def pay_payment(payment_id: int, payment: schemas.PaymentRequest, db: Session = Depends(get_db)):
+    # -- Check payment exists and is pending -- #
+    sql_check = text("""
+        SELECT payment_id, payment_status
+        FROM payments
+        WHERE payment_id = :payment_id
+    """)
+    result = db.execute(sql_check, {"payment_id": payment_id}).fetchone()
+    if not result:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    if result[1] != "Pending":
+        raise HTTPException(status_code=400, detail="Only pending payments can be paid")
+
+    try:
+        sql_update = text("""
+            UPDATE payments
+            SET payment_status = 'Paid',
+                payment_method = :method,
+                payment_date = NOW()
+            WHERE payment_id = :payment_id
+        """)
+        db.execute(sql_update, {
+            "method": payment.payment_method,
+            "payment_id": payment_id
+        })
+        db.commit()
+        return {"Status": "Success", "payment_id": payment_id, "payment_status": "Paid"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/chargers/{charger_id}/available-slots")
 def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)):

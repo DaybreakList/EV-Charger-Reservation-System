@@ -10,6 +10,8 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     role: str
+    cust_id: Optional[int] = None
+    manager_id: Optional[int] = None
 
 # -- User Schemas -- #
 class UserBase(BaseModel):
@@ -114,6 +116,10 @@ class ChargerResponse(BaseModel):
     status: str
     class Config:
         from_attributes = True
+
+# -- Payment Schemas -- #
+class PaymentRequest(BaseModel):
+    payment_method: str
 
 # -- Booking Schemas -- #
 class BookingCreate(BaseModel):
