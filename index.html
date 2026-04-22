@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoltPath — EV Charger Reservation</title>
+  <!-- NOTE: Serve this file via Live Server (VS Code) on http://127.0.0.1:5500 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #070d09;
+      --surface: #0f1a12;
+      --surface-2: #162019;
+      --surface-3: #1d2b21;
+      --border: rgba(34,197,94,0.12);
+      --border-hover: rgba(34,197,94,0.32);
+      --primary: #22c55e;
+      --primary-dark: #16a34a;
+      --primary-glow: rgba(34,197,94,0.14);
+      --text: #e2f5e8;
+      --text-muted: #6aaf7e;
+      --text-dim: #3d6e4a;
+      --danger: #f87171;
+      --danger-bg: rgba(248,113,113,0.1);
+      --danger-border: rgba(248,113,113,0.25);
+      --warning: #fbbf24;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; line-height: 1.6; }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 10% 0%, rgba(34,197,94,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 70% at 90% 100%, rgba(16,185,129,0.03) 0%, transparent 60%);
+    }
+
+    /* ── Navbar ── */
+    #navbar { position: sticky; top: 0; z-index: 100; background: rgba(7,13,9,0.92); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 0 20px; height: 58px; display: flex; align-items: center; justify-content: space-between; }
+    #navbar.hidden { display: none; }
+    .nav-logo { font-family: 'Syne', sans-serif; font-size: 19px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .nav-logo em { font-style: normal; color: var(--text); font-weight: 700; }
+    .nav-links { display: flex; align-items: center; gap: 2px; }
+    .nav-btn { background: none; border: none; color: var(--text-muted); font-family: 'Outfit', sans-serif; font-size: 14px; padding: 6px 13px; border-radius: 7px; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+    .nav-btn:hover { background: var(--primary-glow); color: var(--primary); }
+    .nav-btn.danger:hover { background: var(--danger-bg); color: var(--danger); }
+
+    /* ── App ── */
+    #app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; min-height: calc(100vh - 58px); }
+
+    /* ── Pages ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Auth ── */
+    .auth-wrap { min-height: calc(100vh - 58px); display: flex; align-items: center; justify-content: center; }
+    .auth-box { width: 100%; max-width: 430px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 38px; }
+    .auth-logo { text-align: center; margin-bottom: 28px; }
+    .auth-logo h1 { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; color: var(--primary); }
+    .auth-logo p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+    /* Tabs */
+    .tab-bar { display: flex; background: var(--surface-2); border-radius: 9px; padding: 3px; margin-bottom: 24px; }
+    .tab-btn { flex: 1; background: none; border: none; color: var(--text-muted); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 500; padding: 7px; border-radius: 7px; cursor: pointer; transition: all 0.18s; }
+    .tab-btn.active { background: var(--primary); color: #070d09; font-weight: 700; }
+
+    /* Forms */
+    .form-group { margin-bottom: 14px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+    input, select, textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 14px; padding: 9px 13px; outline: none; transition: border-color 0.18s, box-shadow 0.18s; }
+    input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+    input::placeholder { color: var(--text-dim); }
+    select option { background: var(--surface-2); color: var(--text); }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) hue-rotate(90deg) saturate(2); cursor: pointer; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 20px; border-radius: var(--radius-sm); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.18s; text-decoration: none; white-space: nowrap; }
+    .btn-primary { background: var(--primary); color: #070d09; }
+    .btn-primary:hover { background: #2dd468; transform: translateY(-1px); box-shadow: 0 6px 18px var(--primary-glow); }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--border-hover); background: var(--surface-3); }
+    .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+    .btn-danger:hover { background: rgba(248,113,113,0.18); }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+    .auth-footer { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text-muted); }
+    .auth-footer a { color: var(--primary); cursor: pointer; text-decoration: none; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; top: 68px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-msg { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px; font-size: 13px; max-width: 300px; animation: toastIn 0.2s ease; box-shadow: 0 8px 24px rgba(0,0,0,0.4); pointer-events: auto; }
+    .toast-msg.success { border-color: rgba(34,197,94,0.45); color: var(--primary); }
+    .toast-msg.error { border-color: rgba(248,113,113,0.45); color: var(--danger); }
+    .toast-msg.info { border-color: rgba(96,165,250,0.35); color: #7dd3fc; }
+    @keyframes toastIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Page header ── */
+    .pg-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .pg-header-text h2 { font-family: 'Syne', sans-serif; font-size: 21px; font-weight: 700; }
+    .pg-header-text p { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+    .pg-header-right { margin-left: auto; }
+    .back-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all 0.18s; flex-shrink: 0; }
+    .back-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; transition: all 0.18s; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+    .card-clickable { cursor: pointer; }
+    .card-clickable:hover { border-color: var(--border-hover); transform: translateY(-2px); box-shadow: 0 4px 18px var(--primary-glow); }
+
+    /* Station card */
+    .s-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    .s-address { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+    .s-footer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .s-dist { font-size: 12px; color: var(--text-muted); }
+
+    /* Badge */
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
+    .badge-green { background: var(--primary-glow); color: var(--primary); border: 1px solid rgba(34,197,94,0.2); }
+    .badge-gray { background: rgba(156,163,175,0.1); color: #9ca3af; border: 1px solid rgba(156,163,175,0.2); }
+    .badge-red { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+    .badge-yellow { background: rgba(251,191,36,0.1); color: var(--warning); border: 1px solid rgba(251,191,36,0.2); }
+
+    /* Charger card */
+    .c-id { font-size: 12px; color: var(--text-dim); font-weight: 600; margin-bottom: 3px; }
+    .c-type { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+    .c-stats { display: flex; flex-direction: column; gap: 3px; margin-bottom: 12px; }
+    .c-stat { font-size: 13px; color: var(--text-muted); }
+    .c-stat b { color: var(--primary); }
+
+    /* ── Map ── */
+    #map-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; height: 340px; margin-bottom: 22px; position: relative; }
+    #map { width: 100%; height: 100%; }
+    #map-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--text-muted); gap: 8px; font-size: 14px; }
+    #map-overlay.hidden { display: none; }
+
+    /* ── Slot Grid ── */
+    .slot-toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .slot-date-group { display: flex; align-items: center; gap: 10px; }
+    .slot-date-group label { margin: 0; font-size: 13px; text-transform: none; letter-spacing: 0; }
+    input[type="date"] { width: auto; padding: 7px 11px; }
+
+    .slot-legend { display: flex; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+    .ld-avail { background: rgba(34,197,94,0.2); border: 1px solid var(--primary); }
+    .ld-taken { background: rgba(248,113,113,0.15); border: 1px solid rgba(248,113,113,0.4); }
+    .ld-sel { background: var(--primary); }
+    .ld-past { background: var(--surface-3); border: 1px solid var(--border); }
+
+    .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 7px; margin-bottom: 24px; }
+    .slot-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-family: 'Outfit', sans-serif; font-size: 13px; padding: 9px 6px; cursor: pointer; transition: all 0.14s; text-align: center; }
+    .slot-btn .sl-time { font-weight: 700; color: var(--text); font-size: 14px; }
+    .slot-btn .sl-label { font-size: 10px; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .slot-avail:hover { border-color: var(--primary); background: var(--primary-glow); }
+    .slot-avail:hover .sl-time { color: var(--primary); }
+    .slot-selected { border-color: var(--primary) !important; background: rgba(34,197,94,0.15) !important; box-shadow: 0 0 10px var(--primary-glow); }
+    .slot-selected .sl-time { color: var(--primary) !important; }
+    .slot-taken { background: rgba(248,113,113,0.05); border-color: rgba(248,113,113,0.2); cursor: not-allowed; opacity: 0.65; }
+    .slot-taken .sl-time { color: var(--danger); }
+    .slot-past { opacity: 0.28; cursor: not-allowed; }
+
+    .confirm-bar { position: sticky; bottom: 20px; background: var(--surface); border: 1px solid var(--border-hover); border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    .confirm-bar.hidden { display: none; }
+    .confirm-bar-info { font-size: 14px; }
+    .confirm-bar-info b { color: var(--primary); }
+
+    /* ── History ── */
+    .bk-item { margin-bottom: 12px; }
+    .bk-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .bk-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+    .bk-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .bk-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 20px; margin-bottom: 10px; }
+    .bk-meta-item { font-size: 13px; color: var(--text-muted); }
+    .bk-meta-item b { color: var(--text); display: block; }
+    .bk-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Status badges */
+    .st-pending { background: rgba(251,191,36,0.1); color: var(--warning); border: 1px solid rgba(251,191,36,0.25); }
+    .st-completed { background: var(--primary-glow); color: var(--primary); border: 1px solid rgba(34,197,94,0.25); }
+    .st-cancelled { background: rgba(156,163,175,0.1); color: #9ca3af; border: 1px solid rgba(156,163,175,0.2); }
+
+    /* ── Manager ── */
+    .mgr-station { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden; }
+    .mgr-station-head { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; transition: background 0.18s; }
+    .mgr-station-head:hover { background: var(--primary-glow); }
+    .mgr-station-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; }
+    .mgr-station-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .mgr-station-btns { display: flex; gap: 6px; flex-shrink: 0; }
+    .mgr-chargers-panel { border-top: 1px solid var(--border); padding: 14px 18px; display: none; }
+    .mgr-chargers-panel.open { display: block; }
+    .mgr-charger-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); gap: 10px; }
+    .mgr-charger-row:last-child { border-bottom: none; }
+    .mgr-charger-info { font-size: 13px; color: var(--text-muted); }
+    .mgr-charger-info b { display: block; font-size: 14px; color: var(--text); margin-bottom: 1px; }
+    .mgr-charger-btns { display: flex; gap: 5px; flex-shrink: 0; }
+
+    /* ── Modal ── */
+    .modal-bg { position: fixed; inset: 0; background: rgba(7,13,9,0.82); backdrop-filter: blur(6px); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal-bg.hidden { display: none; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border-hover); border-radius: 16px; padding: 28px; width: 100%; max-width: 400px; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+    .modal-footer { display: flex; gap: 9px; margin-top: 18px; }
+    .modal-footer .btn { flex: 1; }
+
+    /* Loading / Empty */
+    .loading-center { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+    .empty-center { text-align: center; padding: 48px 20px; color: var(--text-dim); }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+    @media (max-width: 580px) {
+      #app { padding: 18px 14px 50px; }
+      .form-row { grid-template-columns: 1fr; }
+      .slot-grid { grid-template-columns: repeat(4, 1fr); }
+      .bk-meta { grid-template-columns: 1fr; }
+      .auth-box { padding: 26px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav id="navbar" class="hidden">
+  <div class="nav-logo" id="nav-logo">⚡ <em>Volt</em>Path</div>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ── App ── -->
+<div id="app">
+
+  <!-- LOGIN -->
+  <div id="page-login" class="page">
+    <div class="auth-wrap">
+      <div class="auth-box">
+        <div class="auth-logo"><h1>⚡ VoltPath</h1><p>EV Charger Reservation System</p></div>
+        <form id="login-form">
+          <div class="form-group"><label>Email</label><input type="email" id="l-email" placeholder="you@example.com" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="l-pass" placeholder="••••••••" required></div>
+          <button type="submit" class="btn btn-primary btn-full" id="login-btn">Sign In</button>
+        </form>
+        <div class="auth-footer">No account? <a id="go-register">Register here</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="page-register" class="page">
+    <div class="auth-wrap">
+      <div class="auth-box">
+        <div class="auth-logo"><h1>⚡ VoltPath</h1><p>Create your account</p></div>
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tab-cust" data-tab="customer">Customer</button>
+          <button class="tab-btn" id="tab-mgr" data-tab="manager">Manager</button>
+        </div>
+        <!-- Customer -->
+        <form id="form-reg-cust">
+          <div class="form-row">
+            <div class="form-group"><label>First Name</label><input type="text" id="rc-fn" placeholder="John" required></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="rc-ln" placeholder="Doe" required></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="rc-em" placeholder="you@example.com" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="rc-pw" placeholder="••••••••" required></div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone</label><input type="tel" id="rc-ph" placeholder="0812345678" required></div>
+            <div class="form-group"><label>Car Model</label><input type="text" id="rc-car" placeholder="Tesla Model 3" required></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+        </form>
+        <!-- Manager -->
+        <form id="form-reg-mgr" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label>First Name</label><input type="text" id="rm-fn" placeholder="Jane" required></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="rm-ln" placeholder="Smith" required></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="rm-em" placeholder="manager@example.com" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="rm-pw" placeholder="••••••••" required></div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone</label><input type="tel" id="rm-ph" placeholder="0891234567" required></div>
+            <div class="form-group"><label>Tax ID</label><input type="text" id="rm-tax" placeholder="1234567890123" required></div>
+          </div>
+          <div class="form-group"><label>Invite Code</label><input type="text" id="rm-inv" placeholder="Enter invite code" required></div>
+          <button type="submit" class="btn btn-primary btn-full">Create Manager Account</button>
+        </form>
+        <div class="auth-footer">Have an account? <a id="go-login">Sign in</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEARBY STATIONS -->
+  <div id="page-nearby" class="page">
+    <div class="pg-header">
+      <div class="pg-header-text">
+        <h2>Nearby Stations</h2>
+        <p id="nearby-sub">Finding charging stations near you…</p>
+      </div>
+      <div class="pg-header-right">
+        <button class="btn btn-secondary btn-sm" id="nearby-refresh">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="map-wrap">
+      <div id="map-overlay"><div class="spinner"></div> Loading map…</div>
+      <div id="map"></div>
+    </div>
+    <div id="stations-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  </div>
+
+  <!-- CHARGERS -->
+  <div id="page-chargers" class="page">
+    <div class="pg-header">
+      <button class="back-btn" id="chargers-back">←</button>
+      <div class="pg-header-text">
+        <h2 id="chargers-title">Chargers</h2>
+        <p id="chargers-sub">Select a charger to book a slot</p>
+      </div>
+    </div>
+    <div id="chargers-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  </div>
+
+  <!-- SLOT PICKER -->
+  <div id="page-slots" class="page">
+    <div class="pg-header">
+      <button class="back-btn" id="slots-back">←</button>
+      <div class="pg-header-text">
+        <h2 id="slots-title">Pick a Slot</h2>
+        <p id="slots-sub">45-minute charging sessions</p>
+      </div>
+    </div>
+    <div class="slot-toolbar">
+      <div class="slot-date-group">
+        <label>Date</label>
+        <input type="date" id="slot-date">
+        <button class="btn btn-secondary btn-sm" id="slot-today-btn">Today</button>
+      </div>
+    </div>
+    <div class="slot-legend">
+      <div class="legend-item"><div class="legend-dot ld-avail"></div> Available</div>
+      <div class="legend-item"><div class="legend-dot ld-taken"></div> Booked</div>
+      <div class="legend-item"><div class="legend-dot ld-sel"></div> Selected</div>
+      <div class="legend-item"><div class="legend-dot ld-past"></div> Past</div>
+    </div>
+    <div id="slot-grid" class="slot-grid"></div>
+    <div class="confirm-bar hidden" id="confirm-bar">
+      <div class="confirm-bar-info">Selected: <b id="confirm-time">—</b></div>
+      <button class="btn btn-primary" id="confirm-book-btn" style="width:auto">Confirm Booking →</button>
+    </div>
+  </div>
+
+  <!-- BOOKING HISTORY -->
+  <div id="page-history" class="page">
+    <div class="pg-header">
+      <div class="pg-header-text"><h2>Booking History</h2><p>Your charging sessions</p></div>
+      <div class="pg-header-right"><button class="btn btn-secondary btn-sm" id="history-refresh">↻ Refresh</button></div>
+    </div>
+    <div id="history-list"><div class="loading-center"><div class="spinner"></div></div></div>
+  </div>
+
+  <!-- MANAGER DASHBOARD -->
+  <div id="page-manager" class="page">
+    <div class="pg-header">
+      <div class="pg-header-text"><h2>Manager Dashboard</h2><p>Manage your stations and chargers</p></div>
+      <div class="pg-header-right"><button class="btn btn-primary btn-sm" id="add-station-btn" style="width:auto">+ Add Station</button></div>
+    </div>
+    <div id="manager-content"><div class="loading-center"><div class="spinner"></div></div></div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ── MODALS ── -->
+
+<!-- Booking Confirm -->
+<div class="modal-bg hidden" id="modal-booking">
+  <div class="modal-box">
+    <div class="modal-title">⚡ Confirm Booking</div>
+    <div id="modal-booking-info"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-booking">Cancel</button>
+      <button class="btn btn-primary" id="do-book-btn">Book Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pay -->
+<div class="modal-bg hidden" id="modal-pay">
+  <div class="modal-box">
+    <div class="modal-title">💳 Pay for Booking</div>
+    <div id="modal-pay-info" style="margin-bottom:14px;font-size:14px;color:var(--text-muted)"></div>
+    <div class="form-group">
+      <label>Payment Method</label>
+      <select id="pay-method">
+        <option value="Prompt Pay">Prompt Pay</option>
+        <option value="Credit Card">Credit Card</option>
+        <option value="Debit Card">Debit Card</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-pay">Cancel</button>
+      <button class="btn btn-primary" id="do-pay-btn">Pay Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Station -->
+<div class="modal-bg hidden" id="modal-edit-station">
+  <div class="modal-box">
+    <div class="modal-title">Edit Station</div>
+    <input type="hidden" id="es-id">
+    <div class="form-group"><label>Name</label><input type="text" id="es-name"></div>
+    <div class="form-group"><label>Address</label><input type="text" id="es-addr"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Latitude</label><input type="number" step="any" id="es-lat" placeholder="optional"></div>
+      <div class="form-group"><label>Longitude</label><input type="number" step="any" id="es-lng" placeholder="optional"></div>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="es-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-edit-station">Cancel</button>
+      <button class="btn btn-primary" id="do-edit-station-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Station -->
+<div class="modal-bg hidden" id="modal-add-station">
+  <div class="modal-box">
+    <div class="modal-title">Add New Station</div>
+    <div class="form-group"><label>Name</label><input type="text" id="as-name" placeholder="Station name"></div>
+    <div class="form-group"><label>Address</label><input type="text" id="as-addr" placeholder="Full address"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Latitude</label><input type="number" step="any" id="as-lat" placeholder="13.7563"></div>
+      <div class="form-group"><label>Longitude</label><input type="number" step="any" id="as-lng" placeholder="100.5018"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-add-station">Cancel</button>
+      <button class="btn btn-primary" id="do-add-station-btn">Add Station</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Charger -->
+<div class="modal-bg hidden" id="modal-edit-charger">
+  <div class="modal-box">
+    <div class="modal-title">Edit Charger</div>
+    <input type="hidden" id="ec-id">
+    <div class="form-group"><label>Rate per kWh (฿)</label><input type="number" step="0.01" id="ec-rate"></div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="ec-status"><option value="Available">Available</option><option value="Out of Service">Out of Service</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-edit-charger">Cancel</button>
+      <button class="btn btn-primary" id="do-edit-charger-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Charger -->
+<div class="modal-bg hidden" id="modal-add-charger">
+  <div class="modal-box">
+    <div class="modal-title">Add Charger</div>
+    <input type="hidden" id="ac-sid">
+    <div class="form-group"><label>Type ID</label><input type="number" id="ac-type" placeholder="e.g. 1 (check with admin)"></div>
+    <div class="form-group"><label>Rate per kWh (฿)</label><input type="number" step="0.01" id="ac-rate" placeholder="e.g. 4.50"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-add-charger">Cancel</button>
+      <button class="btn btn-primary" id="do-add-charger-btn">Add Charger</button>
+    </div>
+  </div>
+</div>
+
+<!-- Google Maps -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDKPJJZhwez6odUpVILepQZ7rBTkJHdRVY&callback=onMapsReady" async></script>
+
+<script>
+'use strict';
+
+// ── Constants ──
+const API = 'http://127.0.0.1:8000';
+
+// ── State ──
+const S = {
+  token: null, role: null, cust_id: null, manager_id: null,
+  station: null,   // { id, name }
+  charger: null,   // { id, typeName, ratePerKwh }
+  selectedSlot: null,
+  payBookingId: null,
+  mapInstance: null,
+  mapsReady: false,
+  geocoder: null,
+  firstName: null,
+  userLat: 13.7563, userLng: 100.5018,
+  lastStations: [],
+  markers: [],     // all placed markers (for cleanup on refresh)
+  userMarker: null,
+  stationCache: {},
+  chargerCache: {},
+};
+
+// ── Maps ──
+window.onMapsReady = function () {
+  S.mapsReady = true;
+  S.geocoder = new google.maps.Geocoder();
+  if (currentPage() === 'nearby') {
+    initMap(S.userLat, S.userLng);
+    if (S.lastStations.length) geocodeAndMark(S.lastStations);
+  }
+};
+
+// ── Auth helpers ──
+function loadAuth() {
+  S.token      = localStorage.getItem('vp_token');
+  S.role       = localStorage.getItem('vp_role');
+  S.cust_id    = +localStorage.getItem('vp_cust') || null;
+  S.manager_id = +localStorage.getItem('vp_mgr') || null;
+  S.firstName  = localStorage.getItem('vp_name') || null;
+}
+
+function saveAuth(d) {
+  S.token = d.access_token; S.role = d.role;
+  S.cust_id = d.cust_id || null; S.manager_id = d.manager_id || null;
+  localStorage.setItem('vp_token', d.access_token);
+  localStorage.setItem('vp_role', d.role);
+  if (d.cust_id) localStorage.setItem('vp_cust', d.cust_id);
+  if (d.manager_id) localStorage.setItem('vp_mgr', d.manager_id);
+}
+
+function clearAuth() {
+  S.token = S.role = S.cust_id = S.manager_id = S.firstName = null;
+  ['vp_token','vp_role','vp_cust','vp_mgr','vp_name'].forEach(k => localStorage.removeItem(k));
+}
+
+// ── API fetch ──
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (S.token) headers['Authorization'] = `Bearer ${S.token}`;
+  const res = await fetch(API + path, { ...opts, headers });
+  let body;
+  try { body = await res.json(); } catch { body = {}; }
+  if (res.status === 401 || res.status === 403) {
+    clearAuth(); updateNav(); showPage('login');
+    throw new Error('Session expired. Please sign in again.');
+  }
+  if (!res.ok) throw new Error(body.detail || `Error ${res.status}`);
+  return body;
+}
+
+// ── Toast ──
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast-msg ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Utilities ──
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  return d.toLocaleString('en-GB', { timeZone: 'Asia/Bangkok', day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12: false });
+}
+
+function fmtTime(isoStr) {
+  if (!isoStr) return '';
+  return new Date(isoStr).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour:'2-digit', minute:'2-digit' });
+}
+
+function today() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+}
+
+// ── Navigation ──
+function currentPage() {
+  const el = document.querySelector('.page.active');
+  return el ? el.id.replace('page-', '') : null;
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name)?.classList.add('active');
+}
+
+function updateNav() {
+  const nb = document.getElementById('navbar');
+  if (!S.token) { nb.classList.add('hidden'); return; }
+  nb.classList.remove('hidden');
+  const links = document.getElementById('nav-links');
+  const greeting = S.firstName ? `<span style="color:var(--text-dim);font-size:13px;padding:0 6px">Hi, ${esc(S.firstName)}</span>` : '';
+  if (S.role === 'customer') {
+    links.innerHTML = `
+      ${greeting}
+      <button class="nav-btn" data-nav="nearby">⚡ Stations</button>
+      <button class="nav-btn" data-nav="history">📋 History</button>
+      <button class="nav-btn danger" id="logout-btn">Logout</button>`;
+  } else {
+    links.innerHTML = `
+      <button class="nav-btn" data-nav="manager">🏭 Dashboard</button>
+      <button class="nav-btn danger" id="logout-btn">Logout</button>`;
+  }
+  links.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => go(b.dataset.nav)));
+  document.getElementById('logout-btn')?.addEventListener('click', logout);
+}
+
+function go(page) {
+  showPage(page);
+  updateNav();
+  const loaders = {
+    nearby:  loadNearby,
+    chargers: () => loadChargers(),
+    slots:   initSlots,
+    history: loadHistory,
+    manager: loadManager,
+  };
+  loaders[page]?.();
+}
+
+function logout() {
+  clearAuth();
+  updateNav();
+  showPage('login');
+}
+
+// ── Login ──
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const d = await api('/login/', { method:'POST', body: JSON.stringify({
+      email: document.getElementById('l-email').value,
+      password: document.getElementById('l-pass').value
+    })});
+    saveAuth(d);
+    if (d.role === 'customer' && d.cust_id) {
+      api(`/customers/${d.cust_id}`).then(p => {
+        S.firstName = p.first_name;
+        localStorage.setItem('vp_name', p.first_name);
+        updateNav();
+      }).catch(() => {});
+    }
+    toast('Welcome back!', 'success');
+    go(d.role === 'manager' ? 'manager' : 'nearby');
+  } catch(err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+});
+
+document.getElementById('go-register').addEventListener('click', () => go('register'));
+document.getElementById('go-login').addEventListener('click', () => go('login'));
+
+// ── Register tabs ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = btn.dataset.tab;
+    document.getElementById('form-reg-cust').style.display = t === 'customer' ? '' : 'none';
+    document.getElementById('form-reg-mgr').style.display  = t === 'manager'  ? '' : 'none';
+  });
+});
+
+document.getElementById('form-reg-cust').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.submitter; btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    await api('/register/customer/', { method:'POST', body: JSON.stringify({
+      user_data: { first_name: document.getElementById('rc-fn').value, last_name: document.getElementById('rc-ln').value,
+                   email: document.getElementById('rc-em').value, password: document.getElementById('rc-pw').value, role: 'customer' },
+      cust_data: { phone: document.getElementById('rc-ph').value, car_model: document.getElementById('rc-car').value }
+    })});
+    toast('Account created! Please sign in.', 'success');
+    go('login');
+  } catch(err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Create Account'; }
+});
+
+document.getElementById('form-reg-mgr').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.submitter; btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    await api('/register/manager/', { method:'POST', body: JSON.stringify({
+      user_data: { first_name: document.getElementById('rm-fn').value, last_name: document.getElementById('rm-ln').value,
+                   email: document.getElementById('rm-em').value, password: document.getElementById('rm-pw').value, role: 'manager' },
+      mgr_data: { phone: document.getElementById('rm-ph').value, tax_id: document.getElementById('rm-tax').value,
+                  invite_code: document.getElementById('rm-inv').value }
+    })});
+    toast('Manager account created! Please sign in.', 'success');
+    go('login');
+  } catch(err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Create Manager Account'; }
+});
+
+// ── Nearby & Map ──
+document.getElementById('nearby-refresh').addEventListener('click', loadNearby);
+document.getElementById('nav-logo').addEventListener('click', () => {
+  if (!S.token) return;
+  go(S.role === 'manager' ? 'manager' : 'nearby');
+});
+
+async function loadNearby() {
+  document.getElementById('nearby-sub').textContent = 'Finding your location…';
+  document.getElementById('stations-list').innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+
+  let lat = 13.7563, lng = 100.5018;
+  try {
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 }));
+    lat = pos.coords.latitude; lng = pos.coords.longitude;
+  } catch { toast('Using default location (Bangkok)', 'info'); }
+
+  S.userLat = lat; S.userLng = lng;
+  if (S.mapsReady) initMap(lat, lng);
+
+  document.getElementById('nearby-sub').textContent = 'Loading stations…';
+  try {
+    const stations = await api(`/stations/nearby?lat=${lat}&lng=${lng}`);
+    S.lastStations = stations;
+    document.getElementById('nearby-sub').textContent = `${stations.length} station${stations.length !== 1 ? 's' : ''} found`;
+    renderStations(stations);
+    if (S.mapsReady && stations.length) geocodeAndMark(stations);
+  } catch(err) {
+    toast(err.message, 'error');
+    document.getElementById('stations-list').innerHTML = `<div class="empty-center"><div class="empty-icon">⚠️</div><p>${esc(err.message)}</p></div>`;
+  }
+}
+
+function initMap(lat = 13.7563, lng = 100.5018) {
+  document.getElementById('map-overlay').classList.add('hidden');
+  if (!S.mapInstance) {
+    S.mapInstance = new google.maps.Map(document.getElementById('map'), {
+      center: { lat, lng }, zoom: 12, styles: mapStyle(),
+      zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+    });
+  } else {
+    S.mapInstance.setCenter({ lat, lng });
+  }
+  // Replace user marker instead of stacking
+  if (S.userMarker) S.userMarker.setMap(null);
+  S.userMarker = new google.maps.Marker({
+    position: { lat, lng }, map: S.mapInstance, title: 'You are here',
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#22c55e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+  });
+}
+
+const BOLT_ICON = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path d="M14 0C6.27 0 0 6.27 0 14c0 9.63 14 22 14 22s14-12.37 14-22C28 6.27 21.73 0 14 0z" fill="#22c55e"/><text x="14" y="19" text-anchor="middle" fill="#070d09" font-size="14" font-family="sans-serif" font-weight="bold">⚡</text></svg>`
+);
+
+function geocodeAndMark(stations) {
+  // Clear previous station markers
+  S.markers.forEach(m => m.setMap(null));
+  S.markers = [];
+  stations.forEach(s => {
+    if (!s.address) return;
+    S.geocoder.geocode({ address: s.address }, (results, status) => {
+      if (status !== 'OK' || !results[0]) return;
+      const pos = results[0].geometry.location;
+      const marker = new google.maps.Marker({
+        position: pos, map: S.mapInstance, title: s.name,
+        icon: { url: BOLT_ICON, scaledSize: new google.maps.Size(28, 36) }
+      });
+      S.markers.push(marker);
+      const info = new google.maps.InfoWindow({
+        content: `<div style="font-family:Outfit,sans-serif;color:#111;padding:4px 2px;font-size:13px"><b>${esc(s.name)}</b><br>${s.distance_km != null ? `🚗 ${s.distance_km} km · ${esc(s.duration_text)}` : ''}</div>`
+      });
+      marker.addListener('click', () => info.open(S.mapInstance, marker));
+    });
+  });
+}
+
+function renderStations(stations) {
+  if (!stations.length) {
+    document.getElementById('stations-list').innerHTML = '<div class="empty-center"><div class="empty-icon">🔌</div><p>No active stations found nearby</p></div>';
+    return;
+  }
+  document.getElementById('stations-list').innerHTML = `<div class="card-grid">${
+    stations.map(s => `
+      <div class="card card-clickable" data-sid="${s.station_id}" data-sname="${esc(s.name)}">
+        <div class="s-name">${esc(s.name)}</div>
+        <div class="s-address">📍 ${esc(s.address || '—')}</div>
+        <div class="s-footer">
+          <span class="badge ${s.status === 'Active' ? 'badge-green' : 'badge-gray'}">${s.status}</span>
+          ${s.distance_km != null ? `<span class="s-dist">🚗 ${s.distance_km} km · ${esc(s.duration_text)}</span>` : ''}
+        </div>
+      </div>`).join('')}
+  </div>`;
+
+  document.querySelectorAll('[data-sid]').forEach(card => {
+    card.addEventListener('click', () => {
+      S.station = { id: +card.dataset.sid, name: card.dataset.sname };
+      go('chargers');
+    });
+  });
+}
+
+// ── Chargers ──
+document.getElementById('chargers-back').addEventListener('click', () => go('nearby'));
+
+async function loadChargers() {
+  if (!S.station) return;
+  document.getElementById('chargers-title').textContent = S.station.name;
+  document.getElementById('chargers-list').innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const chargers = await api(`/stations/${S.station.id}/chargers/`);
+    if (!chargers.length) {
+      document.getElementById('chargers-list').innerHTML = '<div class="empty-center"><div class="empty-icon">🔌</div><p>No chargers at this station</p></div>';
+      document.getElementById('chargers-sub').textContent = '0 chargers';
+      return;
+    }
+    document.getElementById('chargers-sub').textContent = `${chargers.length} charger${chargers.length !== 1 ? 's' : ''}`;
+    document.getElementById('chargers-list').innerHTML = `<div class="card-grid">${
+      chargers.map(c => `
+        <div class="card card-clickable" data-cid="${c.charger_id}" data-ctype="${esc(c.type_name)}" data-crate="${c.rate_per_kwh}" data-cstatus="${c.status}">
+          <div class="c-id">Charger #${c.charger_id}</div>
+          <div class="c-type">${esc(c.type_name)}</div>
+          <div class="c-stats">
+            <div class="c-stat">⚡ <b>${c.max_power_kw} kW</b></div>
+            <div class="c-stat">🔌 <b>${esc(c.charging_standard)}</b></div>
+            <div class="c-stat">💰 <b>฿${c.rate_per_kwh}/kWh</b></div>
+          </div>
+          <span class="badge ${c.status === 'Available' ? 'badge-green' : 'badge-red'}">${c.status}</span>
+        </div>`).join('')}
+    </div>`;
+
+    document.querySelectorAll('[data-cid]').forEach(card => {
+      card.addEventListener('click', () => {
+        if (card.dataset.cstatus === 'Out of Service') { toast('This charger is out of service', 'error'); return; }
+        S.charger = { id: +card.dataset.cid, typeName: card.dataset.ctype, ratePerKwh: +card.dataset.crate };
+        go('slots');
+      });
+    });
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ── Slots ──
+document.getElementById('slots-back').addEventListener('click', () => go('chargers'));
+document.getElementById('slot-date').addEventListener('change', loadSlots);
+document.getElementById('slot-today-btn').addEventListener('click', () => {
+  const di = document.getElementById('slot-date');
+  di.value = today(); loadSlots();
+});
+document.getElementById('confirm-book-btn').addEventListener('click', () => {
+  if (!S.selectedSlot) return;
+  const start = new Date(S.selectedSlot);
+  const end   = new Date(start.getTime() + 45*60*1000);
+  document.getElementById('modal-booking-info').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px">
+      <div><span style="color:var(--text-muted)">Station</span><div style="font-weight:600;margin-top:2px">${esc(S.station.name)}</div></div>
+      <div><span style="color:var(--text-muted)">Charger</span><div style="font-weight:600;margin-top:2px">#${S.charger.id} · ${esc(S.charger.typeName)}</div></div>
+      <div><span style="color:var(--text-muted)">Start</span><div style="font-weight:600;color:var(--primary);margin-top:2px">${fmtTime(S.selectedSlot)}</div></div>
+      <div><span style="color:var(--text-muted)">End</span><div style="font-weight:600;color:var(--primary);margin-top:2px">${fmtTime(end.toISOString())}</div></div>
+      <div><span style="color:var(--text-muted)">Rate</span><div style="font-weight:600;margin-top:2px">฿${S.charger.ratePerKwh}/kWh</div></div>
+      <div><span style="color:var(--text-muted)">Duration</span><div style="font-weight:600;margin-top:2px">45 minutes</div></div>
+    </div>`;
+  openModal('modal-booking');
+});
+
+function initSlots() {
+  if (!S.charger) return;
+  S.selectedSlot = null;
+  document.getElementById('confirm-bar').classList.add('hidden');
+  document.getElementById('slots-title').textContent = `Charger #${S.charger.id}`;
+  document.getElementById('slots-sub').textContent = `${S.charger.typeName} · ฿${S.charger.ratePerKwh}/kWh`;
+  const di = document.getElementById('slot-date');
+  di.value = today();
+  di.min   = today();
+  loadSlots();
+}
+
+async function loadSlots() {
+  S.selectedSlot = null;
+  document.getElementById('confirm-bar').classList.add('hidden');
+  const date = document.getElementById('slot-date').value;
+  if (!date || !S.charger) return;
+  document.getElementById('slot-grid').innerHTML = `<div class="loading-center" style="grid-column:1/-1"><div class="spinner"></div></div>`;
+  try {
+    const slots = await api(`/chargers/${S.charger.id}/available-slots?date=${date}`);
+    const nowMs = Date.now();
+    document.getElementById('slot-grid').innerHTML = slots.map((s, i) => {
+      const startMs = new Date(s.start_time).getTime();
+      const isPast  = startMs <= nowMs;
+      const timeStr = fmtTime(s.start_time);
+      let cls, label;
+      if (isPast)           { cls = 'slot-past';  label = 'Past'; }
+      else if (!s.available){ cls = 'slot-taken'; label = 'Booked'; }
+      else                  { cls = 'slot-avail'; label = 'Available'; }
+      const disabled = isPast || !s.available;
+      return `<button class="slot-btn ${cls}" data-idx="${i}" data-start="${esc(s.start_time)}" data-time="${timeStr}" ${disabled ? 'disabled' : ''}>
+        <div class="sl-time">${timeStr}</div>
+        <div class="sl-label">${label}</div>
+      </button>`;
+    }).join('');
+
+    document.querySelectorAll('.slot-avail').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.slot-selected').forEach(b => b.classList.remove('slot-selected'));
+        btn.classList.add('slot-selected');
+        S.selectedSlot = btn.dataset.start;
+        document.getElementById('confirm-bar').classList.remove('hidden');
+        document.getElementById('confirm-time').textContent = btn.dataset.time + ' (45 min)';
+      });
+    });
+  } catch(err) {
+    toast(err.message, 'error');
+    document.getElementById('slot-grid').innerHTML = `<div class="empty-center"><p>${esc(err.message)}</p></div>`;
+  }
+}
+
+// Booking
+document.getElementById('do-book-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('do-book-btn');
+  btn.disabled = true; btn.textContent = 'Booking…';
+  try {
+    const data = await api('/bookings/', { method:'POST', body: JSON.stringify({
+      cust_id: S.cust_id, charger_id: S.charger.id, start_time: S.selectedSlot
+    })});
+    closeModal('modal-booking');
+    toast(`Booking #${data.booking_id} confirmed!`, 'success');
+    S.selectedSlot = null;
+    document.getElementById('confirm-bar').classList.add('hidden');
+    loadSlots();
+  } catch(err) {
+    toast(err.message, 'error');
+    closeModal('modal-booking');
+  } finally { btn.disabled = false; btn.textContent = 'Book Slot'; }
+});
+
+// ── History ──
+document.getElementById('history-refresh').addEventListener('click', loadHistory);
+
+async function loadHistory() {
+  document.getElementById('history-list').innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const items = await api(`/bookings/history/${S.cust_id}`);
+    if (!items.length) {
+      document.getElementById('history-list').innerHTML = '<div class="empty-center"><div class="empty-icon">📋</div><p>No bookings yet</p></div>';
+      return;
+    }
+    document.getElementById('history-list').innerHTML = items.map(b => {
+      const stCls = { Pending:'st-pending', Completed:'st-completed', Cancelled:'st-cancelled' }[b.booking_status] || '';
+      const payBadge = b.payment_status
+        ? `<span class="badge ${b.payment_status === 'Paid' ? 'badge-green' : 'badge-yellow'}">${b.payment_status}</span>` : '';
+      const canCancel = b.booking_status === 'Pending';
+      const canPay    = b.booking_status === 'Completed' && b.payment_status === 'Pending';
+      return `<div class="card bk-item">
+        <div class="bk-header">
+          <div>
+            <div class="bk-title">${esc(b.station_name)} · Charger #${b.charger_id}</div>
+            <div class="bk-time">${fmt(b.start_time)} – ${fmtTime(b.end_time)}</div>
+          </div>
+          <span class="badge ${stCls}">${b.booking_status}</span>
+        </div>
+        <div class="bk-meta">
+          <div class="bk-meta-item">Booking ID<b>#${b.booking_id}</b></div>
+          ${b.total_kwh != null ? `<div class="bk-meta-item">Energy<b>${b.total_kwh} kWh</b></div>` : ''}
+          ${b.amount != null ? `<div class="bk-meta-item">Amount<b>฿${parseFloat(b.amount).toFixed(2)}</b></div>` : '<div class="bk-meta-item">Amount<b>—</b></div>'}
+          ${b.payment_status ? `<div class="bk-meta-item">Payment<b>${payBadge}</b></div>` : ''}
+        </div>
+        <div class="bk-actions">
+          ${canCancel ? `<button class="btn btn-danger btn-sm" data-cancel="${b.booking_id}">Cancel Booking</button>` : ''}
+          ${canPay ? `<button class="btn btn-primary btn-sm" data-pay="${b.booking_id}" data-amount="${b.amount || 0}" style="width:auto">Pay ฿${parseFloat(b.amount || 0).toFixed(2)}</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    document.querySelectorAll('[data-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => cancelBooking(+btn.dataset.cancel));
+    });
+    document.querySelectorAll('[data-pay]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        S.payBookingId = +btn.dataset.pay;
+        document.getElementById('modal-pay-info').innerHTML = `Amount due: <b style="color:var(--primary)">฿${parseFloat(btn.dataset.amount).toFixed(2)}</b>`;
+        openModal('modal-pay');
+      });
+    });
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Cancel this booking?')) return;
+  try {
+    await api(`/bookings/${id}/cancel`, { method:'PATCH' });
+    toast('Booking cancelled', 'success');
+    loadHistory();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+document.getElementById('do-pay-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('do-pay-btn');
+  btn.disabled = true; btn.textContent = 'Processing…';
+  try {
+    await api(`/payments/${S.payBookingId}/pay`, { method:'PATCH', body: JSON.stringify({
+      payment_method: document.getElementById('pay-method').value
+    })});
+    closeModal('modal-pay');
+    toast('Payment successful!', 'success');
+    loadHistory();
+  } catch(err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Pay Now'; }
+});
+
+// ── Manager Dashboard ──
+document.getElementById('add-station-btn').addEventListener('click', () => {
+  ['as-name','as-addr','as-lat','as-lng'].forEach(id => document.getElementById(id).value = '');
+  openModal('modal-add-station');
+});
+
+async function loadManager() {
+  document.getElementById('manager-content').innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    const stations = await api(`/managers/${S.manager_id}/stations`);
+    S.stationCache = {};
+    stations.forEach(s => S.stationCache[s.station_id] = s);
+    if (!stations.length) {
+      document.getElementById('manager-content').innerHTML = '<div class="empty-center"><div class="empty-icon">🏭</div><p>No stations yet. Click "+ Add Station" to create one.</p></div>';
+      return;
+    }
+    document.getElementById('manager-content').innerHTML = stations.map(s => `
+      <div class="mgr-station" id="mst-${s.station_id}">
+        <div class="mgr-station-head" data-expand="${s.station_id}">
+          <div>
+            <div class="mgr-station-name">${esc(s.name)}</div>
+            <div class="mgr-station-sub">${esc(s.address || '—')} &nbsp;·&nbsp; <span class="badge ${s.status === 'Active' ? 'badge-green' : 'badge-gray'}">${s.status}</span></div>
+          </div>
+          <div class="mgr-station-btns" onclick="event.stopPropagation()">
+            <button class="btn btn-secondary btn-sm" data-edit-station="${s.station_id}">Edit</button>
+            <button class="btn btn-secondary btn-sm" data-add-charger="${s.station_id}">+ Charger</button>
+          </div>
+        </div>
+        <div class="mgr-chargers-panel" id="mcp-${s.station_id}"></div>
+      </div>`).join('');
+
+    document.querySelectorAll('[data-expand]').forEach(el => {
+      el.addEventListener('click', () => toggleChargerPanel(+el.dataset.expand));
+    });
+    document.querySelectorAll('[data-edit-station]').forEach(btn => {
+      btn.addEventListener('click', () => openEditStation(+btn.dataset.editStation));
+    });
+    document.querySelectorAll('[data-add-charger]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('ac-sid').value = btn.dataset.addCharger;
+        document.getElementById('ac-type').value = '';
+        document.getElementById('ac-rate').value = '';
+        openModal('modal-add-charger');
+      });
+    });
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function toggleChargerPanel(sid) {
+  const panel = document.getElementById(`mcp-${sid}`);
+  if (panel.classList.contains('open')) { panel.classList.remove('open'); return; }
+  panel.classList.add('open');
+  panel.innerHTML = '<div class="loading-center" style="padding:12px 0"><div class="spinner"></div></div>';
+  try {
+    const chargers = await api(`/stations/${sid}/chargers/`);
+    S.chargerCache = {}; chargers.forEach(c => S.chargerCache[c.charger_id] = c);
+    if (!chargers.length) {
+      panel.innerHTML = '<p style="color:var(--text-dim);font-size:13px">No chargers. Click "+ Charger" to add one.</p>';
+      return;
+    }
+    panel.innerHTML = chargers.map(c => `
+      <div class="mgr-charger-row">
+        <div class="mgr-charger-info">
+          <b>#${c.charger_id} · ${esc(c.type_name)}</b>
+          ⚡ ${c.max_power_kw} kW &nbsp;·&nbsp; ฿${c.rate_per_kwh}/kWh &nbsp;·&nbsp;
+          <span class="badge ${c.status === 'Available' ? 'badge-green' : 'badge-red'}">${c.status}</span>
+        </div>
+        <div class="mgr-charger-btns">
+          <button class="btn btn-secondary btn-sm" data-edit-charger="${c.charger_id}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-del-charger="${c.charger_id}" data-del-sid="${sid}">Del</button>
+        </div>
+      </div>`).join('');
+
+    panel.querySelectorAll('[data-edit-charger]').forEach(btn => {
+      btn.addEventListener('click', () => openEditCharger(+btn.dataset.editCharger));
+    });
+    panel.querySelectorAll('[data-del-charger]').forEach(btn => {
+      btn.addEventListener('click', () => deleteCharger(+btn.dataset.delCharger, +btn.dataset.delSid));
+    });
+  } catch(err) { panel.innerHTML = `<p style="color:var(--danger)">${esc(err.message)}</p>`; }
+}
+
+function openEditStation(sid) {
+  const s = S.stationCache[sid];
+  if (!s) return;
+  document.getElementById('es-id').value    = sid;
+  document.getElementById('es-name').value  = s.name || '';
+  document.getElementById('es-addr').value  = s.address || '';
+  document.getElementById('es-lat').value   = '';
+  document.getElementById('es-lng').value   = '';
+  document.getElementById('es-status').value = s.status;
+  openModal('modal-edit-station');
+}
+
+function openEditCharger(cid) {
+  const c = S.chargerCache[cid];
+  if (!c) return;
+  document.getElementById('ec-id').value     = cid;
+  document.getElementById('ec-rate').value   = c.rate_per_kwh;
+  document.getElementById('ec-status').value = c.status;
+  openModal('modal-edit-charger');
+}
+
+document.getElementById('do-edit-station-btn').addEventListener('click', async () => {
+  const id = document.getElementById('es-id').value;
+  const body = {};
+  const name = document.getElementById('es-name').value.trim();
+  const addr = document.getElementById('es-addr').value.trim();
+  const lat  = document.getElementById('es-lat').value;
+  const lng  = document.getElementById('es-lng').value;
+  if (name) body.name = name;
+  if (addr) body.address = addr;
+  if (lat)  body.latitude  = parseFloat(lat);
+  if (lng)  body.longitude = parseFloat(lng);
+  body.status = document.getElementById('es-status').value;
+  try {
+    await api(`/stations/${id}?manager_id=${S.manager_id}`, { method:'PATCH', body: JSON.stringify(body) });
+    closeModal('modal-edit-station');
+    toast('Station updated', 'success');
+    loadManager();
+  } catch(err) { toast(err.message, 'error'); }
+});
+
+document.getElementById('do-add-station-btn').addEventListener('click', async () => {
+  const name = document.getElementById('as-name').value.trim();
+  const addr = document.getElementById('as-addr').value.trim();
+  const lat  = parseFloat(document.getElementById('as-lat').value);
+  const lng  = parseFloat(document.getElementById('as-lng').value);
+  if (!name || !addr || isNaN(lat) || isNaN(lng)) { toast('Please fill all fields', 'error'); return; }
+  try {
+    await api(`/stations/?manager_id=${S.manager_id}`, { method:'POST', body: JSON.stringify({ name, address: addr, latitude: lat, longitude: lng }) });
+    closeModal('modal-add-station');
+    toast('Station added!', 'success');
+    loadManager();
+  } catch(err) { toast(err.message, 'error'); }
+});
+
+document.getElementById('do-edit-charger-btn').addEventListener('click', async () => {
+  const id = document.getElementById('ec-id').value;
+  const body = {
+    rate_per_kwh: parseFloat(document.getElementById('ec-rate').value),
+    status: document.getElementById('ec-status').value
+  };
+  if (isNaN(body.rate_per_kwh)) { toast('Please enter a valid rate', 'error'); return; }
+  try {
+    await api(`/chargers/${id}?manager_id=${S.manager_id}`, { method:'PATCH', body: JSON.stringify(body) });
+    closeModal('modal-edit-charger');
+    toast('Charger updated', 'success');
+    loadManager();
+  } catch(err) { toast(err.message, 'error'); }
+});
+
+document.getElementById('do-add-charger-btn').addEventListener('click', async () => {
+  const sid    = document.getElementById('ac-sid').value;
+  const typeId = parseInt(document.getElementById('ac-type').value);
+  const rate   = parseFloat(document.getElementById('ac-rate').value);
+  if (isNaN(typeId) || isNaN(rate)) { toast('Please fill all fields', 'error'); return; }
+  try {
+    await api(`/stations/${sid}/chargers/`, { method:'POST', body: JSON.stringify({ type_id: typeId, rate_per_kwh: rate }) });
+    closeModal('modal-add-charger');
+    toast('Charger added!', 'success');
+    loadManager();
+  } catch(err) { toast(err.message, 'error'); }
+});
+
+async function deleteCharger(cid, sid) {
+  if (!confirm(`Delete Charger #${cid}? This cannot be undone.`)) return;
+  try {
+    await api(`/chargers/${cid}?manager_id=${S.manager_id}`, { method:'DELETE' });
+    toast('Charger deleted', 'success');
+    const panel = document.getElementById(`mcp-${sid}`);
+    panel.classList.remove('open');
+    panel.innerHTML = '';
+    toggleChargerPanel(sid);
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ── Modal helpers ──
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.add('hidden'); });
+});
+
+// ── Map Style ──
+function mapStyle() {
+  return [
+    { elementType:'geometry', stylers:[{color:'#0f1a12'}] },
+    { elementType:'labels.text.stroke', stylers:[{color:'#070d09'}] },
+    { elementType:'labels.text.fill', stylers:[{color:'#5a9b6a'}] },
+    { featureType:'road', elementType:'geometry', stylers:[{color:'#162019'}] },
+    { featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#0a1209'}] },
+    { featureType:'road.highway', elementType:'geometry', stylers:[{color:'#1e2f22'}] },
+    { featureType:'road', elementType:'labels.text.fill', stylers:[{color:'#3d6e4a'}] },
+    { featureType:'water', elementType:'geometry', stylers:[{color:'#060c07'}] },
+    { featureType:'water', elementType:'labels.text.fill', stylers:[{color:'#2d5238'}] },
+    { featureType:'poi', stylers:[{visibility:'off'}] },
+    { featureType:'transit', stylers:[{visibility:'off'}] },
+    { featureType:'administrative.locality', elementType:'labels.text.fill', stylers:[{color:'#6aaf7e'}] },
+  ];
+}
+
+// ── Init ──
+loadAuth();
+updateNav();
+if (S.token) {
+  go(S.role === 'manager' ? 'manager' : 'nearby');
+} else {
+  showPage('login');
+}
+</script>
+</body>
+</html>

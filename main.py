@@ -219,6 +219,19 @@ def register_manager(user_data: schemas.UserCreate, mgr_data: schemas.ManagerCre
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/customers/{cust_id}", response_model=schemas.CustomerProfile)
+def get_customer_profile(cust_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT c.cust_id, c.user_id, u.first_name, u.last_name, u.email, c.phone, c.car_model
+        FROM customers c
+        JOIN users u ON c.user_id = u.user_id
+        WHERE c.cust_id = :cust_id
+    """)
+    result = db.execute(query, {"cust_id": cust_id}).mappings().fetchone()
+    if not result:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return result
+
 @app.get("/stations", response_model=list[schemas.StationResponse])
 def get_all_stations(db: Session = Depends(get_db)):
     query = text("""
@@ -376,7 +389,7 @@ def add_charger_to_station(station_id: int, charger: schemas.ChargerCreate, db: 
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.get("/station/{station_id}/chargers/", response_model=list[schemas.ChargerResponse])
+@app.get("/stations/{station_id}/chargers/", response_model=list[schemas.ChargerResponse])
 def get_chargers_by_station(station_id: int, db: Session = Depends(get_db)):
     query = text("""
                 SELECT
