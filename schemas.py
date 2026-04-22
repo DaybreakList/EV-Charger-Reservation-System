@@ -151,3 +151,8 @@ class BookingResponse(BaseModel):
     booking_status: str
     class Config:
         from_attributes = True
+
+##** Reslove TIME ZONE Problem **##
+class TimeZoneResponse(BaseModel):
+    start_time: datetime
+    end_time: datetime

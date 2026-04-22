@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
-TZ_BANGKOK = ZoneInfo("Asia/Bangkok")
+TZ_BANGKOK = ZoneInfo("UTC")
 from apscheduler.schedulers.background import BackgroundScheduler
 
 MANAGER_INVITE_CODE = "ajarnjack"
@@ -672,3 +672,14 @@ def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)
         slot_start = slot_end #Slot ถัดไป
     
     return slots
+
+##** Reslove TIME ZONE Problem **##
+@app.get("/bookings/", response_model=list[schemas.TimeZoneResponse])
+def timezone_check(booking_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT b.start_time, b.end_time
+        FROM bookings b
+        WHERE booking_id = :booking_id
+    """)
+    result = db.execute(query, {"booking_id": booking_id})
+    return result.mappings().all()
