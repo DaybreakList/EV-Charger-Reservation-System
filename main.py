@@ -624,6 +624,11 @@ def pay_payment(booking_id: int, payment: schemas.PaymentRequest, db: Session = 
                 payment_date = NOW()
             WHERE booking_id = :booking_id
         """)
+        # -- Check if payment method valid -- #
+        if not payment.payment_method in ["Prompt Pay", "Credit Card", "Debit Card"]:
+            db.rollback()
+            raise Exception("Payment Method not recognized")
+
         db.execute(sql_update, {
             "method": payment.payment_method,
             "booking_id": booking_id
