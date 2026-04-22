@@ -8,6 +8,12 @@ import bcrypt
 from jose import jwt #for Create JWT token
 from datetime import datetime, timedelta, date, time #for JWT expiration
 from zoneinfo import ZoneInfo
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv("env")
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 TZ_BANGKOK = ZoneInfo("Asia/Bangkok")
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -231,23 +237,56 @@ def get_all_stations(db: Session = Depends(get_db)):
     return stations
 
 @app.get("/stations/nearby", response_model=list[schemas.StationNearby])
-def get_nearby_stations(lat: float ,lng: float, db: Session = Depends(get_db)):
-    # Haversine formula to calculate distance between two lat/lng points
-    query = text("""SELECT station_id, name, address, status,
-                 ROUND(CAST(
-                    6371 * ACOS(
-                        COS(RADIANS(:lat)) * COS(RADIANS(latitude)) * 
-                        COS(RADIANS(longitude) - RADIANS(:lng)) + 
-                        SIN(RADIANS(:lat)) * SIN(RADIANS(latitude))
-                    )
-                    AS NUMERIC),2) AS distance_km
-                FROM stations WHERE status = 'Active'
-                AND latitude IS NOT NULL AND longitude IS NOT NULL
-                ORDER BY distance_km ASC
-                """)
-    result = db.execute(query, {"lat": lat, "lng": lng})
-    stations = result.mappings().all()
-    return stations
+def get_nearby_stations(lat: float, lng: float, db: Session = Depends(get_db)):
+    # -- ดึงสถานีทั้งหมดที่มีพิกัด -- #
+    query = text("""
+        SELECT station_id, name, address, status, latitude, longitude
+        FROM stations
+        WHERE status = 'Active'
+        AND latitude IS NOT NULL AND longitude IS NOT NULL
+    """)
+    stations = db.execute(query).mappings().all()
+    if not stations:
+        return []
+
+    # -- เตรียม destinations สำหรับ Google Distance Matrix -- #
+    destinations = "|".join([f"{s['latitude']},{s['longitude']}" for s in stations])
+
+    response = requests.get(
+        "https://maps.googleapis.com/maps/api/distancematrix/json",
+        params={
+            "origins": f"{lat},{lng}",
+            "destinations": destinations,
+            "key": GOOGLE_MAPS_API_KEY,
+            "mode": "driving",
+            "units": "metric"
+        }
+    )
+    data = response.json()
+
+    result = []
+    rows = data.get("rows", [])
+    elements = rows[0].get("elements", []) if rows else []
+    for i, station in enumerate(stations):
+        el = elements[i] if i < len(elements) else {}
+        if el.get("status") == "OK":
+            distance_km = round(el["distance"]["value"] / 1000, 2)
+            duration_text = el["duration"]["text"]
+        else:
+            distance_km = None
+            duration_text = None
+
+        result.append({
+            "station_id": station["station_id"],
+            "name": station["name"],
+            "address": station["address"],
+            "status": station["status"],
+            "distance_km": distance_km,
+            "duration_text": duration_text
+        })
+
+    result.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else float("inf"))
+    return result
 
 @app.post("/charger-types/")
 def add_charger_type(charger_type: schemas.ChargerTypeCreate, db: Session = Depends(get_db)):

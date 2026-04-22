@@ -76,6 +76,7 @@ class StationNearby(BaseModel):
     address: Optional[str]
     status: str
     distance_km: Optional[float]
+    duration_text: Optional[str]  
     class Config:
         from_attributes = True
 
