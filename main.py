@@ -311,6 +311,8 @@ def get_nearby_stations(lat: float, lng: float, db: Session = Depends(get_db)):
             "name": station["name"],
             "address": station["address"],
             "status": station["status"],
+            "latitude": float(station["latitude"]),
+            "longitude": float(station["longitude"]),
             "distance_km": distance_km,
             "duration_text": duration_text
         })

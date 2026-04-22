@@ -775,20 +775,17 @@ function geocodeAndMark(stations) {
   S.markers.forEach(m => m.setMap(null));
   S.markers = [];
   stations.forEach(s => {
-    if (!s.address) return;
-    S.geocoder.geocode({ address: s.address }, (results, status) => {
-      if (status !== 'OK' || !results[0]) return;
-      const pos = results[0].geometry.location;
-      const marker = new google.maps.Marker({
-        position: pos, map: S.mapInstance, title: s.name,
-        icon: { url: BOLT_ICON, scaledSize: new google.maps.Size(28, 36) }
-      });
-      S.markers.push(marker);
-      const info = new google.maps.InfoWindow({
-        content: `<div style="font-family:Outfit,sans-serif;color:#111;padding:4px 2px;font-size:13px"><b>${esc(s.name)}</b><br>${s.distance_km != null ? `🚗 ${s.distance_km} km · ${esc(s.duration_text)}` : ''}</div>`
-      });
-      marker.addListener('click', () => info.open(S.mapInstance, marker));
+    if (!s.latitude || !s.longitude) return;
+    const pos = { lat: s.latitude, lng: s.longitude };
+    const marker = new google.maps.Marker({
+      position: pos, map: S.mapInstance, title: s.name,
+      icon: { url: BOLT_ICON, scaledSize: new google.maps.Size(28, 36) }
     });
+    S.markers.push(marker);
+    const info = new google.maps.InfoWindow({
+      content: `<div style="font-family:Outfit,sans-serif;color:#111;padding:4px 2px;font-size:13px"><b>${esc(s.name)}</b><br>${s.distance_km != null ? `🚗 ${s.distance_km} km · ${esc(s.duration_text)}` : ''}</div>`
+    });
+    marker.addListener('click', () => info.open(S.mapInstance, marker));
   });
 }
 
