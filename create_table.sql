@@ -61,7 +61,7 @@ CREATE TABLE bookings (
 );
  
 CREATE TABLE payments (
-    booking_id SERIAL PRIMARY KEY REFERENCES bookings(booking_id) ON DELETE CASCADE,
+    booking_id PRIMARY KEY REFERENCES bookings(booking_id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL,
     payment_method VARCHAR(50), -- Credit Card, QR Code, Wallet | EDITED: Stil considering about this.
     payment_status VARCHAR(20) DEFAULT 'Pending',

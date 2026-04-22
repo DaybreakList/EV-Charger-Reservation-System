@@ -479,15 +479,15 @@ def update_charger_status(charger_id: int, new_status: str, manager_id: int, db:
     db.commit()
     return {"Status": "Success", "charger_id": charger_id, "new_status": new_status}
 
-@app.patch("/payments/{payment_id}/pay")
-def pay_payment(payment_id: int, payment: schemas.PaymentRequest, db: Session = Depends(get_db)):
+@app.patch("/payments/{booking_id}/pay")
+def pay_payment(booking_id: int, payment: schemas.PaymentRequest, db: Session = Depends(get_db)):
     # -- Check payment exists and is pending -- #
     sql_check = text("""
-        SELECT payment_id, payment_status
+        SELECT booking_id, payment_status
         FROM payments
-        WHERE payment_id = :payment_id
+        WHERE booking_id = :booking_id
     """)
-    result = db.execute(sql_check, {"payment_id": payment_id}).fetchone()
+    result = db.execute(sql_check, {"booking_id": booking_id}).fetchone()
     if not result:
         raise HTTPException(status_code=404, detail="Payment not found")
     if result[1] != "Pending":
@@ -499,14 +499,14 @@ def pay_payment(payment_id: int, payment: schemas.PaymentRequest, db: Session = 
             SET payment_status = 'Paid',
                 payment_method = :method,
                 payment_date = NOW()
-            WHERE payment_id = :payment_id
+            WHERE booking_id = :booking_id
         """)
         db.execute(sql_update, {
             "method": payment.payment_method,
-            "payment_id": payment_id
+            "booking_id": booking_id
         })
         db.commit()
-        return {"Status": "Success", "payment_id": payment_id, "payment_status": "Paid"}
+        return {"Status": "Success", "booking_id": booking_id, "payment_status": "Paid"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
