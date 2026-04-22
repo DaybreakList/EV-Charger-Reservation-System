@@ -6,7 +6,7 @@ from database import get_db, SessionLocal
 from sqlalchemy import text
 import bcrypt
 from jose import jwt #for Create JWT token
-from datetime import datetime, timedelta, date, time #for JWT expiration
+from datetime import datetime, timedelta, date, time, timezone #for JWT expiration
 from zoneinfo import ZoneInfo
 import requests
 import os
@@ -116,7 +116,7 @@ def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
     token_data = {
         "user_id": user[0],
         "role": user[2],
-        "exp": datetime.utcnow() + timedelta(hours=1) # Token expires in 1 hour
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1) # Token expires in 1 hour
     }
 
     token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM) # Create JWT token form token_data, SECRET_KEY and ALGORITHM
@@ -417,7 +417,10 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
         AND end_time > :start_time
     """)
     # -- แปลงเวลาจาก user เป็นเวลาไทย -- #
-    start_time = booking.start_time.replace(tzinfo=TZ_BANGKOK)
+    if booking.start_time.tzinfo is None:
+        start_time = booking.start_time.replace(tzinfo=TZ_BANGKOK)
+    else:
+        start_time = booking.start_time.astimezone(TZ_BANGKOK)
     end_time = start_time + timedelta(minutes=SLOT_DURATION_MINUTES)
 
     # -- เช็คว่า start_time ตรงกับ slot -- #
@@ -616,6 +619,9 @@ def pay_payment(booking_id: int, payment: schemas.PaymentRequest, db: Session = 
     if result[1] != "Pending":
         raise HTTPException(status_code=400, detail="Only pending payments can be paid")
 
+    if payment.payment_method not in ["Prompt Pay", "Credit Card", "Debit Card"]:
+        raise HTTPException(status_code=400, detail="Payment method must be 'Prompt Pay', 'Credit Card', or 'Debit Card'")
+
     try:
         sql_update = text("""
             UPDATE payments
@@ -624,11 +630,6 @@ def pay_payment(booking_id: int, payment: schemas.PaymentRequest, db: Session = 
                 payment_date = NOW()
             WHERE booking_id = :booking_id
         """)
-        # -- Check if payment method valid -- #
-        if not payment.payment_method in ["Prompt Pay", "Credit Card", "Debit Card"]:
-            db.rollback()
-            raise Exception("Payment Method not recognized")
-
         db.execute(sql_update, {
             "method": payment.payment_method,
             "booking_id": booking_id
