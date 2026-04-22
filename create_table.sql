@@ -46,7 +46,7 @@ CREATE TABLE chargers (
     station_id INTEGER REFERENCES stations(station_id) ON DELETE CASCADE,
     type_id INTEGER REFERENCES charger_types(type_id),
     rate_per_kwh DECIMAL(10, 2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'Available' -- Available, Occupied, Out of Service
+    status VARCHAR(20) DEFAULT 'Available' -- Available, Out of Service
 );
  
 CREATE TABLE bookings (

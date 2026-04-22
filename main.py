@@ -12,7 +12,7 @@ import requests
 import os
 from dotenv import load_dotenv
 
-load_dotenv("env")
+load_dotenv("GOOGLE_MAPS_API_KEY")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 TZ_BANGKOK = ZoneInfo("Asia/Bangkok")
