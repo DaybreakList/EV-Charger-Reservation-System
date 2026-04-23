@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Sign in — EV Charger Station</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #FAFBF7;
+    --panel:     #FFFFFF;
+    --ink:       #0E1A12;
+    --ink-2:     #2A362D;
+    --muted:     #6B7668;
+    --line:      #E6E8DF;
+    --line-2:    #D8DCCE;
+    --field:     #F4F6EF;
+    --accent:    #1E7F47;     /* deep forest green */
+    --accent-2:  #2FAE62;     /* mid green */
+    --accent-3:  #B6E4C3;     /* pale green */
+    --accent-ink:#0C3B1F;
+    --danger:    #B4442A;
+    --radius:    14px;
+    --radius-sm: 10px;
+    --shadow:    0 1px 0 rgba(14,26,18,.04), 0 12px 40px -12px rgba(14,26,18,.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01","cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.01em;
+  }
+
+  .serif  { font-family: 'Instrument Serif', ui-serif, Georgia, serif; font-weight: 400; letter-spacing: -0.015em; }
+  .mono   { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* ---------- page shell ---------- */
+  .page {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+  @media (min-width: 960px) {
+    .page {
+      grid-template-columns: 1.05fr 1fr;
+      padding: 20px;
+      gap: 20px;
+    }
+  }
+
+  /* ---------- visual panel ---------- */
+  .visual {
+    position: relative;
+    border-radius: 22px;
+    overflow: hidden;
+    background: #0E1A12;
+    color: #EAF3EC;
+    display: none;
+    isolation: isolate;
+  }
+  @media (min-width: 960px) { .visual { display: block; } }
+
+  .visual::before {
+    /* soft radial gradient wash */
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 80% at 18% 15%, rgba(47,174,98,0.35) 0%, rgba(14,26,18,0) 55%),
+      radial-gradient(80% 60% at 90% 95%, rgba(182,228,195,0.18) 0%, rgba(14,26,18,0) 60%),
+      linear-gradient(180deg, #0E1A12 0%, #0A130D 100%);
+    z-index: 0;
+  }
+  .visual::after {
+    /* subtle grain */
+    content:"";
+    position:absolute; inset:0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .visual-inner {
+    position: relative; z-index: 2;
+    height: 100%;
+    padding: 36px 40px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(160deg, #2FAE62, #1E7F47);
+    display: grid; place-items: center;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .brand-mark svg { display: block; }
+
+  .visual-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 360px;
+  }
+
+  /* animated charge viz */
+  .viz {
+    --size: min(72%, 520px);
+    width: var(--size);
+    aspect-ratio: 1 / 1;
+    position: relative;
+  }
+  .viz svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+  .ring {
+    fill: none;
+    stroke: rgba(234,243,236,0.08);
+    stroke-width: 1;
+  }
+  .ring.dashed {
+    stroke: rgba(234,243,236,0.12);
+    stroke-dasharray: 2 6;
+  }
+  .arc {
+    fill: none;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
+  .arc.primary  { stroke: url(#arcGrad); stroke-width: 3; }
+  .tick { stroke: rgba(234,243,236,0.35); stroke-width: 1; }
+
+  @keyframes spin     { to { transform: rotate(360deg); } }
+  @keyframes spinRev  { to { transform: rotate(-360deg); } }
+  @keyframes pulse    { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes float    { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+  .rot-slow   { transform-origin: 50% 50%; animation: spin 32s linear infinite; }
+  .rot-mid    { transform-origin: 50% 50%; animation: spinRev 22s linear infinite; }
+  .rot-fast   { transform-origin: 50% 50%; animation: spin 14s linear infinite; }
+
+  .blip { fill: #B6E4C3; filter: drop-shadow(0 0 6px rgba(182,228,195,0.6)); }
+  .blip.a { animation: pulse 2.4s ease-in-out infinite; }
+  .blip.b { animation: pulse 3.1s ease-in-out 0.6s infinite; }
+  .blip.c { animation: pulse 2.0s ease-in-out 1.1s infinite; }
+
+  .center-card {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+  .readout {
+    text-align: center;
+    animation: float 5s ease-in-out infinite;
+  }
+  .readout .kwh {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(54px, 6.4vw, 88px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .readout .kwh em { font-style: italic; color: #B6E4C3; }
+  .readout .lbl {
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(234,243,236,0.55);
+  }
+
+  /* flowing particles along the outer ring */
+  .flow-path { fill: none; stroke: none; }
+  .particle {
+    r: 2.6;
+    fill: #EAF3EC;
+    filter: drop-shadow(0 0 6px rgba(182,228,195,0.8));
+  }
+
+  .visual-foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .tagline {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(28px, 3vw, 40px);
+    line-height: 1.05;
+    max-width: 22ch;
+    letter-spacing: -0.015em;
+  }
+  .tagline em { font-style: italic; color: #B6E4C3; }
+  .stats {
+    display: flex; gap: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(234,243,236,0.65);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .stats .num { display:block; color:#EAF3EC; font-size: 18px; font-family:'Inter Tight'; letter-spacing:-0.01em; text-transform: none; margin-bottom: 2px; }
+
+  /* ---------- form panel ---------- */
+  .form-wrap {
+    display: grid;
+    place-items: center;
+    padding: 8px 4px;
+  }
+  .form-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 8px 4px;
+  }
+  @media (min-width: 960px) {
+    .form-card { padding: 40px 8px; max-width: 420px; }
+  }
+
+  .form-brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 500; font-size: 15px;
+  }
+  @media (min-width: 960px) { .form-brand { display: none; } }
+  .form-brand .brand-mark { background: linear-gradient(160deg, #2FAE62, #1E7F47); color: #fff; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .eyebrow::before {
+    content:""; width: 24px; height: 1px; background: var(--line-2);
+  }
+
+  h1.title {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(40px, 5vw, 56px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin: 14px 0 10px;
+    color: var(--ink);
+  }
+  h1.title em { font-style: italic; color: var(--accent); }
+
+  .sub {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0 0 32px;
+    max-width: 36ch;
+  }
+
+  form { display: grid; gap: 16px; }
+
+  .field { position: relative; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    margin-bottom: 8px;
+  }
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .input-wrap:hover { border-color: var(--line-2); }
+  .input-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(30,127,71,0.12);
+    background: #fff;
+  }
+  .input-wrap.error {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(180,68,42,0.10);
+  }
+
+  .input-wrap input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    padding: 14px 16px;
+    font: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .input-wrap input::placeholder { color: #9AA29A; }
+
+  .toggle-pw {
+    appearance: none;
+    border: 0; background: transparent;
+    padding: 0 14px;
+    height: 100%;
+    display: grid; place-items: center;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-left: 1px solid var(--line);
+    transition: color .15s ease;
+  }
+  .toggle-pw:hover { color: var(--accent); }
+
+  .row-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: -2px;
+  }
+  .forgot {
+    font-size: 13px;
+    color: var(--ink-2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line-2);
+    padding-bottom: 1px;
+    transition: color .15s, border-color .15s;
+  }
+  .forgot:hover { color: var(--accent); border-color: var(--accent); }
+
+  .err-msg {
+    color: var(--danger);
+    font-size: 12.5px;
+    margin-top: 6px;
+    min-height: 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .err-msg svg { flex: none; }
+
+  .btn-signin {
+    margin-top: 10px;
+    position: relative;
+    appearance: none;
+    border: 0;
+    width: 100%;
+    padding: 16px 20px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: -0.005em;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    overflow: hidden;
+    transition: background .18s ease, transform .12s ease, box-shadow .18s ease;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 10px 24px -12px rgba(30,127,71,0.55);
+  }
+  .btn-signin:hover:not(:disabled) { background: #176B3B; }
+  .btn-signin:active:not(:disabled) { transform: translateY(1px); }
+  .btn-signin:disabled { opacity: 0.7; cursor: not-allowed; }
+  .btn-signin .arrow { transition: transform .2s ease; }
+  .btn-signin:hover:not(:disabled) .arrow { transform: translateX(3px); }
+
+  .spinner {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .divider {
+    margin: 28px 0 18px;
+    display: flex; align-items: center; gap: 14px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .divider::before, .divider::after {
+    content:""; flex:1; height: 1px; background: var(--line);
+  }
+
+  .signup {
+    text-align: center;
+    font-size: 14.5px;
+    color: var(--ink-2);
+  }
+  .signup a {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(30,127,71,0.3);
+    padding-bottom: 1px;
+    transition: border-color .15s;
+  }
+  .signup a:hover { border-color: var(--accent); }
+
+  /* footer note on form side */
+  .form-foot {
+    margin-top: 36px;
+    display: flex; justify-content: space-between; gap: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #9AA29A;
+  }
+
+  /* ---- success state ---- */
+  .success {
+    text-align: center;
+    padding: 24px 4px;
+    animation: fadein .35s ease both;
+  }
+  .success .check {
+    width: 64px; height: 64px; border-radius: 50%;
+    margin: 0 auto 22px;
+    display: grid; place-items: center;
+    background: var(--accent-3);
+    color: var(--accent-ink);
+    animation: popin .5s cubic-bezier(.2,.8,.2,1.2) both;
+  }
+  .success h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 44px; line-height: 1.05; letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .success p { color: var(--muted); margin: 0 0 24px; }
+
+  @keyframes popin  { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* entry animation for form */
+  .reveal > * { opacity: 0; transform: translateY(10px); animation: reveal .7s cubic-bezier(.2,.7,.2,1) forwards; }
+  .reveal > *:nth-child(1) { animation-delay: .05s; }
+  .reveal > *:nth-child(2) { animation-delay: .12s; }
+  .reveal > *:nth-child(3) { animation-delay: .19s; }
+  .reveal > *:nth-child(4) { animation-delay: .26s; }
+  .reveal > *:nth-child(5) { animation-delay: .33s; }
+  .reveal > *:nth-child(6) { animation-delay: .40s; }
+  .reveal > *:nth-child(7) { animation-delay: .47s; }
+  .reveal > *:nth-child(8) { animation-delay: .54s; }
+  @keyframes reveal { to { opacity: 1; transform: translateY(0); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  /* mobile polish */
+  @media (max-width: 600px) {
+    .page { padding: 12px; }
+    .form-card { padding: 16px 6px 40px; }
+    .eyebrow { margin-top: 20px; }
+    h1.title { font-size: 40px; }
+    .form-foot { margin-top: 28px; flex-direction: column; gap: 6px; }
+  }
+</style>
+</head>
+
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useMemo } = React;
+
+/* ---------------- Animated charge viz ---------------- */
+function ChargeViz() {
+  // live kWh counter, gently bobbing
+  const [kwh, setKwh] = useState(12.74);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setKwh(v => {
+        const next = v + (Math.random() * 0.08 + 0.02);
+        return next > 99.99 ? 12.00 : next;
+      });
+    }, 900);
+    return () => clearInterval(id);
+  }, []);
+
+  // format like 12.74
+  const [whole, frac] = kwh.toFixed(2).split('.');
+
+  return (
+    <div className="viz" aria-hidden="true">
+      <svg viewBox="-100 -100 200 200">
+        <defs>
+          <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stopColor="#2FAE62" stopOpacity="0" />
+            <stop offset="45%"  stopColor="#2FAE62" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#B6E4C3" stopOpacity="1" />
+          </linearGradient>
+          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"  stopColor="#2FAE62" stopOpacity="0.35" />
+            <stop offset="70%" stopColor="#2FAE62" stopOpacity="0.05" />
+            <stop offset="100%" stopColor="#2FAE62" stopOpacity="0" />
+          </radialGradient>
+          <path id="flowRing" d="M 0,-84 A 84,84 0 1,1 -0.01,-84 Z" />
+        </defs>
+
+        {/* core glow */}
+        <circle cx="0" cy="0" r="80" fill="url(#coreGlow)" />
+
+        {/* concentric rings */}
+        <circle className="ring" cx="0" cy="0" r="92" />
+        <circle className="ring dashed" cx="0" cy="0" r="72" />
+        <circle className="ring" cx="0" cy="0" r="56" />
+
+        {/* slow outer arc */}
+        <g className="rot-slow">
+          <path className="arc" d="M -84,0 A 84,84 0 0,1 59.4,-59.4" stroke="rgba(234,243,236,0.22)" strokeWidth="1.25" />
+          <circle className="blip a" cx="59.4" cy="-59.4" r="2.4" />
+        </g>
+
+        {/* primary progress arc (mid) */}
+        <g className="rot-mid">
+          <path className="arc primary" d="M 0,-72 A 72,72 0 1,1 -50.9,50.9" />
+          <circle className="blip b" cx="-50.9" cy="50.9" r="3" />
+        </g>
+
+        {/* fast inner arc */}
+        <g className="rot-fast">
+          <path className="arc" d="M 40,-40 A 56,56 0 0,1 -56,0" stroke="#B6E4C3" strokeWidth="1.5" strokeOpacity="0.9" />
+          <circle className="blip c" cx="-56" cy="0" r="2.2" />
+        </g>
+
+        {/* tick marks every 30deg on r=96 */}
+        {Array.from({ length: 12 }).map((_, i) => {
+          const a = (i * 30) * Math.PI / 180;
+          const x1 = Math.cos(a) * 98, y1 = Math.sin(a) * 98;
+          const x2 = Math.cos(a) * 102, y2 = Math.sin(a) * 102;
+          const strong = i % 3 === 0;
+          return <line key={i} className="tick" x1={x1} y1={y1} x2={x2} y2={y2}
+            strokeOpacity={strong ? 0.6 : 0.25} strokeWidth={strong ? 1.25 : 1} />;
+        })}
+
+        {/* flowing particle along outer ring */}
+        <circle r="2.4" fill="#EAF3EC" style={{ filter: 'drop-shadow(0 0 8px rgba(182,228,195,0.9))' }}>
+          <animateMotion dur="6s" repeatCount="indefinite" rotate="auto">
+            <mpath xlinkHref="#flowRing" />
+          </animateMotion>
+        </circle>
+        <circle r="1.8" fill="#B6E4C3" opacity="0.7">
+          <animateMotion dur="6s" begin="-2s" repeatCount="indefinite" rotate="auto">
+            <mpath xlinkHref="#flowRing" />
+          </animateMotion>
+        </circle>
+        <circle r="1.4" fill="#B6E4C3" opacity="0.5">
+          <animateMotion dur="6s" begin="-4s" repeatCount="indefinite" rotate="auto">
+            <mpath xlinkHref="#flowRing" />
+          </animateMotion>
+        </circle>
+
+        {/* inner soft disc */}
+        <circle cx="0" cy="0" r="42" fill="#0A130D" opacity="0.55" />
+        <circle cx="0" cy="0" r="42" fill="none" stroke="rgba(182,228,195,0.25)" strokeWidth="0.75" />
+      </svg>
+
+      <div className="center-card">
+        <div className="readout">
+          <div className="kwh">
+            {whole}<em>.{frac}</em>
+          </div>
+          <div className="lbl">kWh · Delivering</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Brand mark ---------------- */
+function BrandMark({ light }) {
+  return (
+    <span className="brand-mark" aria-hidden="true">
+      <svg width="14" height="16" viewBox="0 0 14 16" fill="none">
+        <path d="M8 1L1 9h4l-1 6 7-8H7l1-6z" fill="#fff" />
+      </svg>
+    </span>
+  );
+}
+
+/* ---------------- Login form ---------------- */
+function LoginForm() {
+  const [email, setEmail]       = useState('');
+  const [pw, setPw]             = useState('');
+  const [show, setShow]         = useState(false);
+  const [touched, setTouched]   = useState({ email: false, pw: false });
+  const [submitting, setSubmit] = useState(false);
+  const [success, setSuccess]   = useState(false);
+  const [authError, setAuthErr] = useState('');
+
+  const emailErr = useMemo(() => {
+    if (!email) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email';
+    return '';
+  }, [email]);
+
+  const pwErr = useMemo(() => {
+    if (!pw) return 'Password is required';
+    if (pw.length < 6) return 'At least 6 characters';
+    return '';
+  }, [pw]);
+
+  const API_BASE = 'http://127.0.0.1:8000';
+  const canSubmit = !emailErr && !pwErr && !submitting;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setTouched({ email: true, pw: true });
+    setAuthErr('');
+    if (emailErr || pwErr) return;
+    setSubmit(true);
+    try {
+      const res = await fetch(`${API_BASE}/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pw })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthErr(data.detail || 'Invalid email or password');
+        return;
+      }
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('role', data.role);
+      if (data.cust_id != null)     localStorage.setItem('cust_id', data.cust_id);
+      if (data.manager_id != null)  localStorage.setItem('manager_id', data.manager_id);
+      setSuccess(true);
+      setTimeout(() => {
+        if (data.role === 'manager') {
+          window.location.href = 'Manager Dashboard.html';
+        } else {
+          window.location.href = 'Find Stations.html';
+        }
+      }, 1000);
+    } catch (err) {
+      setAuthErr('Cannot connect to server. Please try again.');
+    } finally {
+      setSubmit(false);
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="success" role="status" aria-live="polite">
+        <div className="check" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <h2>You're in.</h2>
+        <p>Redirecting…</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="reveal">
+      <div>
+        <span className="eyebrow">Secure sign-in</span>
+        <h1 className="title">Welcome <em>back.</em></h1>
+        <p className="sub">Manage stations, track sessions, and keep the grid moving. Sign in to continue.</p>
+      </div>
+
+      {/* Email */}
+      <div className="field">
+        <label htmlFor="email">Email address</label>
+        <div className={`input-wrap ${touched.email && emailErr ? 'error' : ''}`}>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            placeholder="you@company.com"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setAuthErr(''); }}
+            onBlur={() => setTouched(t => ({...t, email:true}))}
+            aria-invalid={touched.email && !!emailErr}
+            aria-describedby="email-err"
+          />
+        </div>
+        <div id="email-err" className="err-msg" aria-live="polite">
+          {touched.email && emailErr ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              {emailErr}
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Password */}
+      <div className="field">
+        <label htmlFor="pw">Password</label>
+        <div className={`input-wrap ${touched.pw && pwErr ? 'error' : ''}`}>
+          <input
+            id="pw"
+            type={show ? 'text' : 'password'}
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={pw}
+            onChange={e => { setPw(e.target.value); setAuthErr(''); }}
+            onBlur={() => setTouched(t => ({...t, pw:true}))}
+            aria-invalid={touched.pw && !!pwErr}
+            aria-describedby="pw-err"
+          />
+          <button
+            type="button"
+            className="toggle-pw"
+            onClick={() => setShow(s => !s)}
+            aria-label={show ? 'Hide password' : 'Show password'}
+            aria-pressed={show}
+          >
+            {show ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        <div id="pw-err" className="err-msg" aria-live="polite">
+          {touched.pw && pwErr ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              {pwErr}
+            </>
+          ) : authError ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              {authError}
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="row-between">
+        <span />
+        <a href="#" className="forgot" onClick={e => e.preventDefault()}>Forgot password?</a>
+      </div>
+
+      <button type="submit" className="btn-signin" disabled={!canSubmit}>
+        {submitting ? (
+          <>
+            <span className="spinner" aria-hidden="true" />
+            <span>Signing in…</span>
+          </>
+        ) : (
+          <>
+            <span>Sign In</span>
+            <svg className="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </>
+        )}
+      </button>
+
+      <div className="signup">
+        Don't have an account? <a href="Registration.html">Sign up</a>
+      </div>
+    </form>
+  );
+}
+
+/* ---------------- Page ---------------- */
+function App() {
+  return (
+    <div className="page">
+      {/* Visual panel (desktop only) */}
+      <aside className="visual" aria-hidden="false">
+        <div className="visual-inner">
+          <div className="brand">
+            <BrandMark />
+            <span>EV Charger Station</span>
+          </div>
+
+          <div className="visual-stage">
+            <ChargeViz />
+          </div>
+
+          <div className="visual-foot">
+            <div className="tagline">
+              Clean energy, <em>clean code.</em><br/>
+              One login for every station.
+            </div>
+            <div className="stats">
+              <div>
+                <span className="num">2,847</span>
+                Stations online
+              </div>
+              <div>
+                <span className="num">184.2k</span>
+                kWh today
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Form panel */}
+      <main className="form-wrap">
+        <div className="form-card">
+          <div className="form-brand">
+            <BrandMark />
+            <span>EV Charger Station</span>
+          </div>
+
+          <LoginForm />
+
+          <div className="form-foot">
+            <span>v2.4 · api.evcharger.io</span>
+            <span>© 2026</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

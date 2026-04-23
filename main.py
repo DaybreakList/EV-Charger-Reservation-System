@@ -236,6 +236,21 @@ def get_all_stations(db: Session = Depends(get_db)):
     stations = result.mappings().all()
     return stations
 
+@app.get("/stations/{station_id}", response_model=schemas.StationResponse)
+def get_station(station_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT s.station_id, s.name, s.address, s.status,
+               u.first_name || ' ' || u.last_name AS manager_name
+        FROM stations s
+        LEFT JOIN managers m ON s.manager_id = m.manager_id
+        LEFT JOIN users u ON m.user_id = u.user_id
+        WHERE s.station_id = :station_id
+    """)
+    result = db.execute(query, {"station_id": station_id}).mappings().fetchone()
+    if not result:
+        raise HTTPException(status_code=404, detail="Station not found")
+    return result
+
 @app.get("/managers/{manager_id}/stations", response_model=list[schemas.StationResponse])
 def get_stations_by_manager(manager_id: int, db: Session = Depends(get_db)):
     query = text("""
