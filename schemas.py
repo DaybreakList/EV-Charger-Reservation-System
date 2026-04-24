@@ -53,7 +53,9 @@ class StationResponse(BaseModel):
     name: str
     address: Optional[str]
     status: str
-    manager_name: str
+    manager_name: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     class Config:
         from_attributes = True
 
@@ -75,8 +77,10 @@ class StationNearby(BaseModel):
     name: str
     address: Optional[str]
     status: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     distance_km: Optional[float]
-    duration_text: Optional[str]  
+    duration_text: Optional[str]
     class Config:
         from_attributes = True
 

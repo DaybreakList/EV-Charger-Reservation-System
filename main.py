@@ -227,6 +227,8 @@ def get_all_stations(db: Session = Depends(get_db)):
             s.name,
             s.address,
             s.status,
+            s.latitude,
+            s.longitude,
             u.first_name || ' ' || u.last_name AS manager_name
         FROM stations s
         LEFT JOIN managers m ON s.manager_id = m.manager_id
@@ -244,6 +246,8 @@ def get_stations_by_manager(manager_id: int, db: Session = Depends(get_db)):
             s.name,
             s.address,
             s.status,
+            s.latitude,
+            s.longitude,
             u.first_name || ' ' || u.last_name AS manager_name
         FROM stations s
         LEFT JOIN managers m ON s.manager_id = m.manager_id
@@ -298,6 +302,8 @@ def get_nearby_stations(lat: float, lng: float, db: Session = Depends(get_db)):
             "name": station["name"],
             "address": station["address"],
             "status": station["status"],
+            "latitude": float(station["latitude"]) if station["latitude"] is not None else None,
+            "longitude": float(station["longitude"]) if station["longitude"] is not None else None,
             "distance_km": distance_km,
             "duration_text": duration_text
         })
