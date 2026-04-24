@@ -1,14 +1,14 @@
 /* =============================================================
    LOGIN — page script
-   Shared helpers are pulled from window.EVShared (BrandMark).
-   ChargeViz and LoginForm are local to this page.
+   Shared helpers (BrandMark, ChargeViz) come from window.EVShared.
+   LoginForm and the kWh counter wrapper are local to this page.
    ============================================================= */
 
 const { useState, useEffect, useMemo } = React;
-const { BrandMark } = window.EVShared;
+const { BrandMark, ChargeViz } = window.EVShared;
 
-/* ---------------- Animated charge viz ---------------- */
-function ChargeViz() {
+/* ---------------- Live kWh readout (login-only) ---------------- */
+function KwhReadout() {
   const [kwh, setKwh] = useState(12.74);
   useEffect(() => {
     const id = setInterval(() => {
@@ -21,97 +21,10 @@ function ChargeViz() {
   }, []);
 
   const [whole, frac] = kwh.toFixed(2).split('.');
-
   return (
-    <div className="viz" aria-hidden="true">
-      <svg viewBox="-100 -100 200 200">
-        <defs>
-          <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%"   stopColor="#2FAE62" stopOpacity="0" />
-            <stop offset="45%"  stopColor="#2FAE62" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#B6E4C3" stopOpacity="1" />
-          </linearGradient>
-          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#2FAE62" stopOpacity="0.35" />
-            <stop offset="70%"  stopColor="#2FAE62" stopOpacity="0.05" />
-            <stop offset="100%" stopColor="#2FAE62" stopOpacity="0" />
-          </radialGradient>
-          <path id="flowRing" d="M 0,-84 A 84,84 0 1,1 -0.01,-84 Z" />
-        </defs>
-
-        {/* core glow */}
-        <circle cx="0" cy="0" r="80" fill="url(#coreGlow)" />
-
-        {/* concentric rings */}
-        <circle className="ring" cx="0" cy="0" r="92" />
-        <circle className="ring dashed" cx="0" cy="0" r="72" />
-        <circle className="ring" cx="0" cy="0" r="56" />
-
-        {/* slow outer arc */}
-        <g className="rot-slow">
-          <path className="arc" d="M -84,0 A 84,84 0 0,1 59.4,-59.4" stroke="rgba(234,243,236,0.22)" strokeWidth="1.25" />
-          <circle className="blip a" cx="59.4" cy="-59.4" r="2.4" />
-        </g>
-
-        {/* primary progress arc (mid) */}
-        <g className="rot-mid">
-          <path className="arc primary" d="M 0,-72 A 72,72 0 1,1 -50.9,50.9" />
-          <circle className="blip b" cx="-50.9" cy="50.9" r="3" />
-        </g>
-
-        {/* fast inner arc */}
-        <g className="rot-fast">
-          <path className="arc" d="M 40,-40 A 56,56 0 0,1 -56,0" stroke="#B6E4C3" strokeWidth="1.5" strokeOpacity="0.9" />
-          <circle className="blip c" cx="-56" cy="0" r="2.2" />
-        </g>
-
-        {/* tick marks every 30deg */}
-        {Array.from({ length: 12 }).map((_, i) => {
-          const a = (i * 30) * Math.PI / 180;
-          const x1 = Math.cos(a) * 98, y1 = Math.sin(a) * 98;
-          const x2 = Math.cos(a) * 102, y2 = Math.sin(a) * 102;
-          const strong = i % 3 === 0;
-          return (
-            <line
-              key={i}
-              className="tick"
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              strokeOpacity={strong ? 0.6 : 0.25}
-              strokeWidth={strong ? 1.25 : 1}
-            />
-          );
-        })}
-
-        {/* flowing particles along outer ring */}
-        <circle r="2.4" fill="#EAF3EC" style={{ filter: 'drop-shadow(0 0 8px rgba(182,228,195,0.9))' }}>
-          <animateMotion dur="6s" repeatCount="indefinite" rotate="auto">
-            <mpath xlinkHref="#flowRing" />
-          </animateMotion>
-        </circle>
-        <circle r="1.8" fill="#B6E4C3" opacity="0.7">
-          <animateMotion dur="6s" begin="-2s" repeatCount="indefinite" rotate="auto">
-            <mpath xlinkHref="#flowRing" />
-          </animateMotion>
-        </circle>
-        <circle r="1.4" fill="#B6E4C3" opacity="0.5">
-          <animateMotion dur="6s" begin="-4s" repeatCount="indefinite" rotate="auto">
-            <mpath xlinkHref="#flowRing" />
-          </animateMotion>
-        </circle>
-
-        {/* inner soft disc */}
-        <circle cx="0" cy="0" r="42" fill="#0A130D" opacity="0.55" />
-        <circle cx="0" cy="0" r="42" fill="none" stroke="rgba(182,228,195,0.25)" strokeWidth="0.75" />
-      </svg>
-
-      <div className="center-card">
-        <div className="readout">
-          <div className="kwh">
-            {whole}<em>.{frac}</em>
-          </div>
-          <div className="lbl">kWh · Delivering</div>
-        </div>
-      </div>
+    <div className="readout">
+      <div className="kwh">{whole}<em>.{frac}</em></div>
+      <div className="lbl">kWh · Delivering</div>
     </div>
   );
 }
@@ -294,7 +207,7 @@ function App() {
           </a>
 
           <div className="visual-stage">
-            <ChargeViz />
+            <ChargeViz><KwhReadout /></ChargeViz>
           </div>
 
           <div className="visual-foot">
