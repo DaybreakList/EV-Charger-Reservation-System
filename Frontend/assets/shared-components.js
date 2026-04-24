@@ -302,6 +302,78 @@
     );
   }
 
+  /* ---------- API base + fetch helper ----------
+     Every page talks to the FastAPI backend through `api()`. It:
+       - prepends API_BASE
+       - sets JSON headers
+       - attaches the JWT from localStorage (if any)
+       - throws an Error with the backend's `detail` on non-2xx
+     Usage:
+       const data = await EVShared.api('/stations');
+       const res  = await EVShared.api('/login/', { method: 'POST', body: { email, password } });
+  */
+  const API_BASE = 'http://127.0.0.1:8000';
+
+  async function api(path, opts = {}) {
+    const token = localStorage.getItem('access_token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts.headers || {}),
+    };
+    const body = opts.body && typeof opts.body !== 'string'
+      ? JSON.stringify(opts.body)
+      : opts.body;
+
+    const res = await fetch(API_BASE + path, { ...opts, headers, body });
+
+    let data = null;
+    try { data = await res.json(); } catch (_) { /* no body */ }
+
+    if (!res.ok) {
+      const msg = (data && data.detail) || res.statusText || 'Request failed';
+      const err = new Error(msg);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  /* ---------- Auth helpers ----------
+     Thin wrappers around localStorage so pages don't sprinkle raw
+     key strings. Call `saveSession(loginResponse)` after /login/,
+     `getSession()` on page load to guard routes, and `logout()` on
+     the logout button.
+  */
+  const SESSION_KEYS = ['access_token', 'role', 'cust_id', 'manager_id'];
+
+  function saveSession(res) {
+    if (res.access_token) localStorage.setItem('access_token', res.access_token);
+    if (res.role)         localStorage.setItem('role', res.role);
+    if (res.cust_id    != null) localStorage.setItem('cust_id', String(res.cust_id));
+    if (res.manager_id != null) localStorage.setItem('manager_id', String(res.manager_id));
+  }
+
+  function getSession() {
+    const token = localStorage.getItem('access_token');
+    if (!token) return null;
+    return {
+      token,
+      role: localStorage.getItem('role'),
+      cust_id:    localStorage.getItem('cust_id')    ? parseInt(localStorage.getItem('cust_id'), 10)    : null,
+      manager_id: localStorage.getItem('manager_id') ? parseInt(localStorage.getItem('manager_id'), 10) : null,
+    };
+  }
+
+  function logout(redirectTo) {
+    SESSION_KEYS.forEach(k => localStorage.removeItem(k));
+    if (redirectTo) window.location.href = redirectTo;
+  }
+
   /* ---------- Expose ---------- */
-  window.EVShared = { BrandMark, Ico, BottomNav, Modal, ChargeViz, ManagerHeader, Toast };
+  window.EVShared = {
+    BrandMark, Ico, BottomNav, Modal, ChargeViz, ManagerHeader, Toast,
+    API_BASE, api, saveSession, getSession, logout,
+  };
 })();
