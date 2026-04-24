@@ -6,54 +6,7 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo, useRef } = React;
-const { Ico, ManagerHeader, Toast } = window.EVShared;
-
-/* =============================================================
-   MOCK DATA — replace with API calls when backend is ready.
-   // TODO (backend integration):
-   //   const summary  = await fetch('/api/manager/summary').then(r => r.json());
-   //   const stations = await fetch('/api/manager/stations').then(r => r.json());
-   ============================================================= */
-const MANAGER = { name: 'Ajarn Jack', role: 'Network Manager', initials: 'AJ' };
-
-const INITIAL_STATIONS = [
-  {
-    id: 'EVC-2041',
-    name: 'Green Park Charger',
-    address: '88 Sukhumvit Soi 24, Khlong Tan, Bangkok 10110',
-    latitude: 13.7239, longitude: 100.5689,
-    status: 'active',
-    chargers: { total: 6, available: 4, busy: 2, offline: 0 },
-    todayBookings: 18, todayRevenue: 4820, utilization: 72,
-  },
-  {
-    id: 'EVC-2042',
-    name: 'Emporium Rooftop',
-    address: '622 Sukhumvit Rd, Khlong Ton Nuea, Bangkok 10110',
-    latitude: 13.7302, longitude: 100.5697,
-    status: 'active',
-    chargers: { total: 4, available: 1, busy: 3, offline: 0 },
-    todayBookings: 22, todayRevenue: 6310, utilization: 86,
-  },
-  {
-    id: 'EVC-2043',
-    name: 'Lumpini Riverside',
-    address: '12 Rama IV Rd, Pathum Wan, Bangkok 10330',
-    latitude: 13.7307, longitude: 100.5418,
-    status: 'maintenance',
-    chargers: { total: 3, available: 0, busy: 0, offline: 3 },
-    todayBookings: 4, todayRevenue: 940, utilization: 14,
-  },
-  {
-    id: 'EVC-2044',
-    name: 'Terminal 21 Hub',
-    address: '2/88 Sukhumvit Soi 19, Asoke, Bangkok 10110',
-    latitude: 13.7373, longitude: 100.5602,
-    status: 'inactive',
-    chargers: { total: 8, available: 0, busy: 0, offline: 8 },
-    todayBookings: 0, todayRevenue: 0, utilization: 0,
-  },
-];
+const { Ico, ManagerHeader, Toast, api, normalizeStation, STATUS, getSession, logout } = window.EVShared;
 
 /* ============ Sparkline ============ */
 function Sparkline({ seed = 1, color = 'var(--accent)' }) {
@@ -113,73 +66,37 @@ function Metric({ lbl, value, unit, delta, deltaDir = 'up', icon, accent, spark,
 
 /* ============ Station Card ============ */
 function StationCard({ s, onToggleStatus, onEdit, onManageChargers }) {
-  const { chargers } = s;
-  const total = chargers.total || 1;
-  const okPct   = (chargers.available / total) * 100;
-  const busyPct = (chargers.busy      / total) * 100;
-  const offPct  = (chargers.offline   / total) * 100;
-
-  const statusLabel =
-    s.status === 'active'      ? 'Active' :
-    s.status === 'maintenance' ? 'Maintenance' :
-                                 'Inactive';
+  const statusLabel = s.status === 'active' ? 'Active' : 'Inactive';
 
   return (
     <article
-      className={`station ${s.status === 'inactive' ? 'off' : s.status === 'maintenance' ? 'maint' : ''}`}
+      className={`station ${s.status === 'inactive' ? 'off' : ''}`}
       data-station-id={s.id}
       id={`station-${s.id}`}
     >
       <div className="st-top">
         <div className="st-title-wrap">
-          <span className="st-id">{s.id}</span>
+          <span className="st-id">EVC-{s.id}</span>
           <span className="st-name">{s.name}</span>
         </div>
         <div className="toggle-wrap">
-          <span className={`status-badge ${s.status === 'active' ? 'on' : s.status === 'maintenance' ? 'maint' : 'off'}`}>
+          <span className={`status-badge ${s.status === 'active' ? 'on' : 'off'}`}>
             {statusLabel}
           </span>
           <button
-            className={`toggle ${s.status === 'active' ? 'on' : s.status === 'maintenance' ? 'maint' : ''}`}
+            className={`toggle ${s.status === 'active' ? 'on' : ''}`}
             data-action="toggle-status"
             data-station-id={s.id}
             aria-pressed={s.status === 'active'}
             aria-label={`Toggle ${s.name} status`}
-            onClick={() => onToggleStatus(s.id)}
+            onClick={() => onToggleStatus(s)}
           />
         </div>
       </div>
 
       <div className="st-addr">
         <Ico.Pin width="14" height="14"/>
-        <span>{s.address}</span>
-      </div>
-
-      <div>
-        <div className="st-metrics">
-          <div className="mini">
-            <span className="lbl">Chargers</span>
-            <span className="val">{chargers.total}<small>ports</small></span>
-          </div>
-          <div className="mini">
-            <span className="lbl">Today · bookings</span>
-            <span className="val">{s.todayBookings}</span>
-          </div>
-          <div className="mini">
-            <span className="lbl">Today · revenue</span>
-            <span className="val serif"><em>฿{s.todayRevenue.toLocaleString()}</em></span>
-          </div>
-        </div>
-        <div className="cb-legend" style={{ marginTop: 10 }}>
-          <div className="charger-bar" style={{ width: '100%', marginBottom: 6 }}>
-            {okPct   > 0 && <span className="cb-ok"   style={{ width: `${okPct}%` }}/>}
-            {busyPct > 0 && <span className="cb-busy" style={{ width: `${busyPct}%` }}/>}
-            {offPct  > 0 && <span className="cb-off"  style={{ width: `${offPct}%` }}/>}
-          </div>
-          <span><span className="dot" style={{ background: 'var(--accent-2)' }}/>{chargers.available} avail</span>
-          <span><span className="dot" style={{ background: 'var(--warning)'  }}/>{chargers.busy} in use</span>
-          <span><span className="dot" style={{ background: 'var(--danger)'   }}/>{chargers.offline} offline</span>
-        </div>
+        <span>{s.address || '—'}</span>
       </div>
 
       <div className="st-foot">
@@ -367,76 +284,113 @@ function StationModal({ initial, onClose, onSave }) {
 
 /* ============ App ============ */
 function App() {
-  const [stations, setStations] = useState(INITIAL_STATIONS);
+  const session = getSession();
+  const MANAGER = useMemo(() => {
+    // Backend doesn't return manager's name yet; use a placeholder.
+    if (!session || !session.manager_id) return { name: 'Manager', role: 'Network Manager', initials: 'M' };
+    return { name: `Manager #${session.manager_id}`, role: 'Network Manager', initials: 'M' };
+  }, []);
+  const MANAGER_ID = session ? session.manager_id : null;
+
+  const [stations, setStations] = useState([]);
+  const [loadErr, setLoadErr]   = useState('');
   const [filter, setFilter]     = useState('all');
   const [query, setQuery]       = useState('');
   const [modal, setModal]       = useState(null);
   const [toast, setToast]       = useState(null);
 
+  async function loadStations() {
+    if (!MANAGER_ID) {
+      setLoadErr('Please sign in as a manager.');
+      return;
+    }
+    try {
+      const data = await api(`/managers/${MANAGER_ID}/stations`);
+      setStations(data.map(normalizeStation));
+      setLoadErr('');
+    } catch (e) {
+      setLoadErr(e.message || 'Failed to load stations');
+    }
+  }
+
+  useEffect(() => { loadStations(); }, []);
+
   const metrics = useMemo(() => {
-    const totalBookings = stations.reduce((a, s) => a + s.todayBookings, 0);
-    const totalRevenue  = stations.reduce((a, s) => a + s.todayRevenue,  0);
-    const activeCount   = stations.filter(s => s.status === 'active').length;
+    const activeCount = stations.filter(s => s.status === 'active').length;
     return {
-      total:    stations.length,
-      active:   activeCount,
-      bookings: totalBookings,
-      revenue:  totalRevenue,
+      total:  stations.length,
+      active: activeCount,
     };
   }, [stations]);
 
   const filtered = useMemo(() => {
     return stations.filter(s => {
-      if (filter === 'active'      && s.status !== 'active')      return false;
-      if (filter === 'inactive'    && s.status !== 'inactive')    return false;
-      if (filter === 'maintenance' && s.status !== 'maintenance') return false;
+      if (filter === 'active'   && s.status !== 'active')   return false;
+      if (filter === 'inactive' && s.status !== 'inactive') return false;
       if (query) {
         const q = query.toLowerCase();
-        if (!(s.name.toLowerCase().includes(q) ||
-              s.id.toLowerCase().includes(q) ||
-              s.address.toLowerCase().includes(q))) return false;
+        const hay = `${s.name} ${s.id} ${s.address || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
       }
       return true;
     });
   }, [stations, filter, query]);
 
   const counts = useMemo(() => ({
-    all:         stations.length,
-    active:      stations.filter(s => s.status === 'active').length,
-    maintenance: stations.filter(s => s.status === 'maintenance').length,
-    inactive:    stations.filter(s => s.status === 'inactive').length,
+    all:      stations.length,
+    active:   stations.filter(s => s.status === 'active').length,
+    inactive: stations.filter(s => s.status === 'inactive').length,
   }), [stations]);
 
-  function toggleStatus(id) {
-    setStations(list => list.map(s => {
-      if (s.id !== id) return s;
-      return { ...s, status: s.status === 'active' ? 'inactive' : 'active' };
-    }));
-  }
-
-  function saveStation(data) {
-    if (data.id) {
-      setStations(list => list.map(s => s.id === data.id ? { ...s, ...data } : s));
-      flash(`Saved · ${data.name}`);
-    } else {
-      const id = 'EVC-' + Math.floor(2047 + Math.random() * 50);
-      setStations(list => [
-        {
-          ...data, id, status: 'active',
-          chargers: { total: 0, available: 0, busy: 0, offline: 0 },
-          todayBookings: 0, todayRevenue: 0, utilization: 0,
-        },
-        ...list,
-      ]);
-      flash(`Created · ${id} · ${data.name}`);
+  async function toggleStatus(s) {
+    const nextUi = s.status === 'active' ? 'inactive' : 'active';
+    try {
+      await api(`/stations/${s.id}?manager_id=${MANAGER_ID}`, {
+        method: 'PATCH',
+        body: { status: STATUS.station.toAPI[nextUi] },
+      });
+      await loadStations();
+      flash(`Station ${nextUi === 'active' ? 'activated' : 'deactivated'}`);
+    } catch (e) {
+      flash(e.message || 'Toggle failed');
     }
-    setModal(null);
   }
 
-  function flash(msg) {
-    setToast(msg);
-    // Toast component handles its own auto-dismiss
+  async function saveStation(data) {
+    try {
+      if (data.id) {
+        // Edit
+        const body = {
+          name:      data.name,
+          address:   data.address,
+          latitude:  data.latitude,
+          longitude: data.longitude,
+        };
+        await api(`/stations/${data.id}?manager_id=${MANAGER_ID}`, {
+          method: 'PATCH',
+          body,
+        });
+        flash(`Saved · ${data.name}`);
+      } else {
+        await api(`/stations/?manager_id=${MANAGER_ID}`, {
+          method: 'POST',
+          body: {
+            name:      data.name,
+            address:   data.address,
+            latitude:  data.latitude,
+            longitude: data.longitude,
+          },
+        });
+        flash(`Created · ${data.name}`);
+      }
+      setModal(null);
+      await loadStations();
+    } catch (e) {
+      flash(e.message || 'Save failed');
+    }
   }
+
+  function flash(msg) { setToast(msg); }
 
   function goToChargerManagement(stationId) {
     window.location.href = `../charger-management/index.html?station=${encodeURIComponent(stationId)}`;
@@ -448,7 +402,7 @@ function App() {
         tag="Manager"
         crumb="Dashboard · Overview"
         user={MANAGER}
-        onLogout={() => flash('Logged out (mock)')}
+        onLogout={() => logout('../login/index.html')}
       />
 
       <div className="page">
@@ -465,9 +419,6 @@ function App() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary btn-lg" onClick={() => flash('Exporting CSV… (mock)')}>
-              Export
-            </button>
             <button
               className="btn btn-primary btn-lg"
               data-action="add-station"
@@ -485,33 +436,32 @@ function App() {
           <Metric
             lbl="Total stations"
             value={metrics.total}
-            delta="+1"
+            delta={`${metrics.total}`}
             deltaDir="up"
             icon={<Ico.Station width="18" height="18"/>}
           />
           <Metric
             lbl="Active stations"
-            value={`${metrics.active}/${metrics.total}`}
-            delta={`${Math.round(metrics.active / metrics.total * 100)}%`}
+            value={`${metrics.active}/${metrics.total || 0}`}
+            delta={metrics.total ? `${Math.round(metrics.active / metrics.total * 100)}%` : '—'}
             deltaDir="up"
             icon={<Ico.Activity width="18" height="18"/>}
             accent
           />
           <Metric
-            lbl="Today's bookings"
-            value={metrics.bookings}
-            unit="sessions"
-            icon={<Ico.Calendar width="18" height="18"/>}
-            spark
-            sparkSeed={7}
+            lbl="Inactive stations"
+            value={metrics.total - metrics.active}
+            delta={`${metrics.total - metrics.active}`}
+            deltaDir={(metrics.total - metrics.active) > 0 ? 'down' : 'up'}
+            icon={<Ico.Warn width="18" height="18"/>}
           />
           <Metric
-            lbl="Today's revenue"
-            value={`฿${metrics.revenue.toLocaleString()}`}
-            icon={<Ico.Cash width="18" height="18"/>}
+            lbl="Network status"
+            value={loadErr ? 'Down' : 'Live'}
+            delta={loadErr ? 'error' : 'ok'}
+            deltaDir={loadErr ? 'down' : 'up'}
+            icon={<Ico.Activity width="18" height="18"/>}
             accent
-            spark
-            sparkSeed={42}
           />
         </div>
 
@@ -525,10 +475,9 @@ function App() {
 
         <div className="filter-row">
           {[
-            ['all',         'All'],
-            ['active',      'Active'],
-            ['maintenance', 'Maintenance'],
-            ['inactive',    'Inactive'],
+            ['all',      'All'],
+            ['active',   'Active'],
+            ['inactive', 'Inactive'],
           ].map(([k, l]) => (
             <button
               key={k}

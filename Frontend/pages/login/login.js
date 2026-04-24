@@ -5,7 +5,7 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo } = React;
-const { BrandMark, ChargeViz } = window.EVShared;
+const { BrandMark, ChargeViz, api, saveSession } = window.EVShared;
 
 /* ---------------- Live kWh readout (login-only) ---------------- */
 function KwhReadout() {
@@ -53,21 +53,28 @@ function LoginForm() {
 
   const canSubmit = !emailErr && !pwErr && !submitting;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setTouched({ email: true, pw: true });
     setAuthErr('');
     if (emailErr || pwErr) return;
     setSubmit(true);
-    setTimeout(() => {
-      setSubmit(false);
-      if (pw.toLowerCase() === 'wrong') {
-        setAuthErr('Those credentials don’t match our records.');
-        return;
-      }
+    try {
+      const res = await api('/login/', {
+        method: 'POST',
+        body: { email, password: pw },
+      });
+      saveSession(res);
       setSuccess(true);
-      // TODO (backend): window.location.href = '../find-stations/index.html';
-    }, 900);
+      const target = res.role === 'manager'
+        ? '../manager-dashboard/index.html'
+        : '../find-stations/index.html';
+      setTimeout(() => { window.location.href = target; }, 600);
+    } catch (err) {
+      setAuthErr(err.message || 'Login failed');
+    } finally {
+      setSubmit(false);
+    }
   }
 
   if (success) {

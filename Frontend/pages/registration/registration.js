@@ -6,7 +6,7 @@
    ============================================================= */
 
 const { useState, useMemo, useEffect } = React;
-const { BrandMark, ChargeViz, Ico } = window.EVShared;
+const { BrandMark, ChargeViz, Ico, api } = window.EVShared;
 
 const INVITE_CODE = 'ajarnjack';
 
@@ -117,19 +117,55 @@ function RegistrationForm({ persona }) {
   const hasAnyError = Object.keys(errors).length > 0;
   const canSubmit = !hasAnyError && agree && !submitting;
 
-  function submit(e) {
+  const [apiError, setApiError] = useState('');
+
+  async function submit(e) {
     e.preventDefault();
     const allKeys = isManager
       ? ['firstName','lastName','email','password','phone','taxId','inviteCode']
       : ['firstName','lastName','email','password','phone','carModel'];
     setTouched(Object.fromEntries(allKeys.map(k => [k, true])));
+    setApiError('');
     if (hasAnyError || !agree) return;
     setSubmit(true);
-    setTimeout(() => {
-      setSubmit(false);
+    try {
+      const userData = {
+        first_name: form.firstName.trim(),
+        last_name:  form.lastName.trim(),
+        email:      form.email.trim(),
+        password:   form.password,
+        role:       isManager ? 'manager' : 'customer',
+      };
+      if (isManager) {
+        await api('/register/manager/', {
+          method: 'POST',
+          body: {
+            user_data: userData,
+            mgr_data: {
+              phone:       form.phone.trim(),
+              tax_id:      form.taxId.trim(),
+              invite_code: form.inviteCode.trim(),
+            },
+          },
+        });
+      } else {
+        await api('/register/customer/', {
+          method: 'POST',
+          body: {
+            user_data: userData,
+            cust_data: {
+              phone:     form.phone.trim(),
+              car_model: form.carModel.trim(),
+            },
+          },
+        });
+      }
       setSuccess({ persona, email: form.email, firstName: form.firstName });
-      // TODO (backend): POST /api/auth/register { persona, ...form }
-    }, 1000);
+    } catch (err) {
+      setApiError(err.message || 'Registration failed');
+    } finally {
+      setSubmit(false);
+    }
   }
 
   if (success) {
@@ -289,6 +325,13 @@ function RegistrationForm({ persona }) {
           <a href="#" onClick={e => e.preventDefault()}>Privacy Policy</a>.
         </span>
       </label>
+
+      {apiError && (
+        <div className="err-msg" aria-live="polite" style={{ marginTop: 4 }}>
+          <Ico.Alert width="13" height="13"/>
+          {apiError}
+        </div>
+      )}
 
       <button type="submit" className="btn-submit" disabled={!canSubmit}>
         {submitting ? (

@@ -5,100 +5,7 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo } = React;
-const { BrandMark, Ico, BottomNav } = window.EVShared;
-
-/* =============================================================
-   MOCK DATA — replace with API call when backend is ready.
-   // TODO (backend integration):
-   //   const res = await fetch('/api/bookings?customerId=...');
-   //   const bookings = await res.json();
-   ============================================================= */
-const MOCK_BOOKINGS = [
-  {
-    id: 'BK-10284',
-    stationName: 'Green Park Charger',
-    stationId: 'EVC-2041',
-    chargerId: 'CHG-A01',
-    connectorType: 'CCS2 · 150kW',
-    startIso: '2026-04-24T18:00:00',
-    endIso:   '2026-04-24T18:45:00',
-    kwhUsed: null,
-    kwhEstimate: 22.5,
-    ratePerKwh: 8.5,
-    bookingStatus: 'pending',
-    paymentStatus: 'pending',
-  },
-  {
-    id: 'BK-10279',
-    stationName: 'Emporium Rooftop',
-    stationId: 'EVC-2042',
-    chargerId: 'CHG-B02',
-    connectorType: 'CCS2 · 120kW',
-    startIso: '2026-04-25T09:00:00',
-    endIso:   '2026-04-25T09:45:00',
-    kwhUsed: null,
-    kwhEstimate: 18.0,
-    ratePerKwh: 8.2,
-    bookingStatus: 'pending',
-    paymentStatus: 'paid',
-  },
-  {
-    id: 'BK-10241',
-    stationName: 'Lumpini Riverside',
-    stationId: 'EVC-2043',
-    chargerId: 'CHG-C02',
-    connectorType: 'Type 2 · 22kW',
-    startIso: '2026-04-21T14:15:00',
-    endIso:   '2026-04-21T15:00:00',
-    kwhUsed: 14.6,
-    kwhEstimate: 16.5,
-    ratePerKwh: 6.9,
-    bookingStatus: 'completed',
-    paymentStatus: 'paid',
-  },
-  {
-    id: 'BK-10226',
-    stationName: 'Silom Central',
-    stationId: 'EVC-2045',
-    chargerId: 'CHG-D03',
-    connectorType: 'CCS2 · 180kW',
-    startIso: '2026-04-19T07:30:00',
-    endIso:   '2026-04-19T08:15:00',
-    kwhUsed: 28.9,
-    kwhEstimate: 32.0,
-    ratePerKwh: 8.5,
-    bookingStatus: 'completed',
-    paymentStatus: 'paid',
-  },
-  {
-    id: 'BK-10218',
-    stationName: 'Terminal 21 Hub',
-    stationId: 'EVC-2044',
-    chargerId: 'CHG-E01',
-    connectorType: 'CCS2 · 150kW',
-    startIso: '2026-04-17T16:00:00',
-    endIso:   '2026-04-17T16:45:00',
-    kwhUsed: 0,
-    kwhEstimate: 20.0,
-    ratePerKwh: 7.8,
-    bookingStatus: 'cancelled',
-    paymentStatus: 'refunded',
-  },
-  {
-    id: 'BK-10207',
-    stationName: 'Chatuchak North',
-    stationId: 'EVC-2046',
-    chargerId: 'CHG-F02',
-    connectorType: 'CHAdeMO · 50kW',
-    startIso: '2026-04-14T11:00:00',
-    endIso:   '2026-04-14T11:45:00',
-    kwhUsed: 17.2,
-    kwhEstimate: 18.0,
-    ratePerKwh: 6.5,
-    bookingStatus: 'completed',
-    paymentStatus: 'paid',
-  },
-];
+const { BrandMark, Ico, BottomNav, api, normalizeBooking, getSession, STATUS } = window.EVShared;
 
 /* ============ utils ============ */
 function fmtDate(iso) {
@@ -110,8 +17,9 @@ function fmtTime(iso) {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 function bookingAmount(b) {
-  const kwh = b.kwhUsed != null ? b.kwhUsed : b.kwhEstimate;
-  return kwh * b.ratePerKwh;
+  if (b.amount != null) return b.amount;
+  if (b.kwhUsed != null) return b.kwhUsed * b.ratePerKwh;
+  return 0;
 }
 
 /* ============ Status chip helpers ============ */
@@ -122,19 +30,22 @@ function bookingChip(status) {
   return <span className="chip" data-booking-status={status}>{status}</span>;
 }
 function paymentChip(status) {
+  if (!status)               return null;
   if (status === 'pending')  return <span className="chip chip-warn" data-payment-status="pending">Unpaid</span>;
   if (status === 'paid')     return <span className="chip chip-ok"   data-payment-status="paid">Paid</span>;
-  if (status === 'refunded') return <span className="chip chip-done" data-payment-status="refunded">Refunded</span>;
   return <span className="chip">{status}</span>;
 }
 
 /* ============ Booking Card ============ */
 function BookingCard({ b, onCancel, onPay }) {
   const amount = bookingAmount(b);
-  const kwh = b.kwhUsed != null ? b.kwhUsed : b.kwhEstimate;
+  const kwh = b.kwhUsed != null ? b.kwhUsed : 0;
   const amountIsEstimate = b.kwhUsed == null;
 
-  const needsPayment = b.paymentStatus === 'pending' && b.bookingStatus !== 'cancelled';
+  // Payment row only appears once the scheduler has moved the booking to
+  // Completed (backend creates the payment row then). Pending bookings
+  // can only be cancelled.
+  const needsPayment = b.paymentStatus === 'pending' && b.bookingStatus === 'completed';
   const canCancel = b.bookingStatus === 'pending';
 
   return (
@@ -158,7 +69,7 @@ function BookingCard({ b, onCancel, onPay }) {
             <Ico.Clock width="14" height="14"/>
             <span>{fmtTime(b.startIso)}–{fmtTime(b.endIso)}</span>
             <span className="dot" aria-hidden="true"/>
-            <span className="mono">{b.id}</span>
+            <span className="mono">BK-{b.id}</span>
           </div>
         </div>
         <div className="bk-badges">
@@ -285,15 +196,25 @@ function PaymentModal({ booking, onClose, onSuccess }) {
     setTimeout(() => onClose(), 180);
   }
 
-  function confirm() {
+  const [err, setErr] = useState('');
+
+  async function confirm() {
     if (submitting) return;
     setSubmitting(true);
-    // TODO (backend): POST /api/payments { bookingId, method, ... }
-    setTimeout(() => {
-      setSubmitting(false);
+    setErr('');
+    try {
+      const paymentMethod = STATUS.paymentMethod.toAPI[method] || 'Prompt Pay';
+      await api(`/payments/${booking.id}/pay`, {
+        method: 'PATCH',
+        body: { payment_method: paymentMethod },
+      });
       setSuccess(true);
       setTimeout(() => onSuccess(booking.id), 1600);
-    }, 900);
+    } catch (e) {
+      setErr(e.message || 'Payment failed');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   useEffect(() => {
@@ -474,6 +395,11 @@ function PaymentModal({ booking, onClose, onSuccess }) {
               )}
             </div>
 
+            {err && (
+              <div className="err-msg" style={{ margin: '0 22px 8px', color: 'var(--danger)' }} aria-live="polite">
+                <Ico.Alert width="13" height="13"/> {err}
+              </div>
+            )}
             <footer className="modal-foot">
               <button className="btn btn-secondary btn-lg" onClick={close} disabled={submitting}>
                 Cancel
@@ -514,9 +440,9 @@ function PaymentModal({ booking, onClose, onSuccess }) {
               </p>
             </div>
             <div className="receipt">
-              <div className="row"><span className="k">Booking</span><span className="v mono">{booking.id}</span></div>
+              <div className="row"><span className="k">Booking</span><span className="v mono">BK-{booking.id}</span></div>
               <div className="row"><span className="k">Station</span><span className="v">{booking.stationName}</span></div>
-              <div className="row"><span className="k">Method</span><span className="v">{method === 'promptpay' ? 'Prompt Pay' : method === 'credit' ? 'Credit Card' : 'Debit Card'}</span></div>
+              <div className="row"><span className="k">Method</span><span className="v">{STATUS.paymentMethod.toAPI[method] || 'Prompt Pay'}</span></div>
               <div className="row"><span className="k">Amount</span><span className="v">฿{amount.toFixed(2)}</span></div>
             </div>
             <button className="btn btn-primary btn-lg" style={{ alignSelf: 'stretch' }} onClick={close}>
@@ -531,9 +457,27 @@ function PaymentModal({ booking, onClose, onSuccess }) {
 
 /* ============ App ============ */
 function App() {
-  const [filter, setFilter]     = useState('all');
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS);
+  const [filter, setFilter]       = useState('all');
+  const [bookings, setBookings]   = useState([]);
+  const [loadErr, setLoadErr]     = useState('');
   const [payingFor, setPayingFor] = useState(null);
+
+  async function loadBookings() {
+    const session = getSession();
+    if (!session || !session.cust_id) {
+      setLoadErr('Please sign in as a customer to see your bookings.');
+      return;
+    }
+    try {
+      const data = await api(`/bookings/history/${session.cust_id}`);
+      setBookings(data.map(normalizeBooking));
+      setLoadErr('');
+    } catch (e) {
+      setLoadErr(e.message || 'Failed to load bookings');
+    }
+  }
+
+  useEffect(() => { loadBookings(); }, []);
 
   const filtered = useMemo(() => {
     const sorted = [...bookings].sort((a, b) => new Date(b.startIso) - new Date(a.startIso));
@@ -548,16 +492,19 @@ function App() {
     cancelled: bookings.filter(b => b.bookingStatus === 'cancelled').length,
   }), [bookings]);
 
-  function handleCancel(id) {
-    if (!window.confirm('Cancel this booking? A refund will be processed if payment was received.')) return;
-    setBookings(list => list.map(b => b.id === id
-      ? { ...b, bookingStatus: 'cancelled', paymentStatus: b.paymentStatus === 'paid' ? 'refunded' : b.paymentStatus }
-      : b));
+  async function handleCancel(id) {
+    if (!window.confirm('Cancel this booking?')) return;
+    try {
+      await api(`/bookings/${id}/cancel`, { method: 'PATCH' });
+      await loadBookings();
+    } catch (e) {
+      alert(e.message || 'Cancel failed');
+    }
   }
 
   function handlePaySuccess(id) {
-    setBookings(list => list.map(b => b.id === id ? { ...b, paymentStatus: 'paid' } : b));
     setPayingFor(null);
+    loadBookings();
   }
 
   return (
@@ -610,7 +557,15 @@ function App() {
             <span className="sort-hint">Newest first</span>
           </div>
 
-          {filtered.length === 0 && <EmptyState filter={filter}/>}
+          {loadErr && (
+            <div className="empty" role="alert">
+              <div className="empty-ico" aria-hidden="true"><Ico.Alert width="28" height="28"/></div>
+              <h3>Couldn't <em>load</em></h3>
+              <p>{loadErr}</p>
+              <button className="btn btn-secondary" onClick={loadBookings}>Try again</button>
+            </div>
+          )}
+          {!loadErr && filtered.length === 0 && <EmptyState filter={filter}/>}
 
           {filtered.length > 0 && (
             <div className="reveal" style={{ display: 'grid', gap: 14 }} id="bookings-list">

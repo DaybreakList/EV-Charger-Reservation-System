@@ -371,9 +371,93 @@
     if (redirectTo) window.location.href = redirectTo;
   }
 
+  /* ---------- Status mappers ----------
+     Backend stores capitalized values ('Active', 'Available', 'Pending'...)
+     while the UI uses lowercase/kebab. These helpers translate both ways
+     so each page doesn't reinvent its own switch statements.
+  */
+  const STATUS = {
+    station: {
+      toUI: { 'Active': 'active', 'Inactive': 'inactive' },
+      toAPI: { 'active': 'Active', 'inactive': 'Inactive' },
+    },
+    charger: {
+      toUI: { 'Available': 'available', 'Out of Service': 'out-of-service' },
+      toAPI: { 'available': 'Available', 'out-of-service': 'Out of Service' },
+    },
+    booking: {
+      toUI: { 'Pending': 'pending', 'Confirmed': 'confirmed', 'Completed': 'completed', 'Cancelled': 'cancelled' },
+      toAPI: { 'pending': 'Pending', 'confirmed': 'Confirmed', 'completed': 'Completed', 'cancelled': 'Cancelled' },
+    },
+    payment: {
+      toUI: { 'Pending': 'pending', 'Paid': 'paid' },
+      toAPI: { 'pending': 'Pending', 'paid': 'Paid' },
+    },
+    paymentMethod: {
+      toAPI: { 'promptpay': 'Prompt Pay', 'credit': 'Credit Card', 'debit': 'Debit Card' },
+      toUI:  { 'Prompt Pay': 'promptpay', 'Credit Card': 'credit', 'Debit Card': 'debit' },
+    },
+  };
+
+  /* ---------- Entity normalizers ----------
+     Map a raw backend row into the shape the UI components expect.
+     If backend adds fields, extend here once rather than in every page.
+  */
+  function normalizeStation(s) {
+    return {
+      id:           s.station_id,
+      name:         s.name,
+      address:      s.address,
+      status:       STATUS.station.toUI[s.status] || 'inactive',
+      managerName:  s.manager_name,
+      distanceKm:   s.distance_km ?? null,
+      durationText: s.duration_text ?? null,
+    };
+  }
+  function normalizeCharger(c) {
+    return {
+      id:        c.charger_id,
+      typeId:    c.type_id,
+      typeName:  c.type_name,
+      maxKw:     parseFloat(c.max_power_kw),
+      standard:  c.charging_standard,
+      ratePerKwh: parseFloat(c.rate_per_kwh),
+      status:    STATUS.charger.toUI[c.status] || 'out-of-service',
+    };
+  }
+  function normalizeBooking(b) {
+    return {
+      id:            b.booking_id,
+      chargerId:     b.charger_id,
+      stationName:   b.station_name,
+      startIso:      b.start_time,
+      endIso:        b.end_time,
+      kwhUsed:       b.total_kwh != null ? parseFloat(b.total_kwh) : null,
+      ratePerKwh:    parseFloat(b.rate_per_kwh_snapshot),
+      bookingStatus: STATUS.booking.toUI[b.booking_status] || 'pending',
+      amount:        b.amount != null ? parseFloat(b.amount) : null,
+      paymentStatus: b.payment_status ? (STATUS.payment.toUI[b.payment_status] || 'pending') : null,
+    };
+  }
+
+  /* ---------- 45-minute slot helpers ----------
+     Backend aligns every slot to midnight Bangkok time (SLOT=45min). We
+     format start_time as a local ISO-ish string WITHOUT 'Z' so FastAPI
+     treats it as naive and applies Asia/Bangkok (see main.py ~L420).
+  */
+  const SLOT_MINUTES = 45;
+
+  function toBangkokIsoNoTz(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T` +
+           `${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+  }
+
   /* ---------- Expose ---------- */
   window.EVShared = {
     BrandMark, Ico, BottomNav, Modal, ChargeViz, ManagerHeader, Toast,
     API_BASE, api, saveSession, getSession, logout,
+    STATUS, normalizeStation, normalizeCharger, normalizeBooking,
+    SLOT_MINUTES, toBangkokIsoNoTz,
   };
 })();

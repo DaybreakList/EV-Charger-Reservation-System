@@ -6,51 +6,24 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo, useRef } = React;
-const { Ico, ManagerHeader, Toast } = window.EVShared;
+const { Ico, ManagerHeader, Toast, api, normalizeStation, normalizeCharger, STATUS, getSession, logout } = window.EVShared;
 
-const MANAGER = { name: 'Ajarn Jack', role: 'Network Manager', initials: 'AJ' };
+const URL_STATION_ID = (() => {
+  const v = new URLSearchParams(window.location.search).get('station');
+  const n = parseInt(v, 10);
+  return isNaN(n) ? null : n;
+})();
 
-/* =============================================================
-   MOCK DATA — replace with API calls when backend is ready.
-   // TODO (backend integration):
-   //   const { id } = new URLSearchParams(location.search).get('station');
-   //   const station  = await fetch(`/api/stations/${id}`).then(r => r.json());
-   //   const chargers = await fetch(`/api/stations/${id}/chargers`).then(r => r.json());
-   ============================================================= */
-const STATION = {
-  id: 'EVC-2041',
-  name: 'Green Park Charger',
-  address: '88 Sukhumvit Soi 24, Khlong Tan, Bangkok 10110',
-};
-
-const INITIAL_CHARGERS = [
-  {
-    id: 'CH-A01', typeKey: 'type2_ac', typeName: 'Type 2', connector: 'AC', maxKW: 22,
-    ratePerKWh: 7.5, status: 'available', activeBookings: 2,
-  },
-  {
-    id: 'CH-A02', typeKey: 'type2_ac', typeName: 'Type 2', connector: 'AC', maxKW: 22,
-    ratePerKWh: 7.5, status: 'in-use', activeBookings: 5,
-  },
-  {
-    id: 'CH-B01', typeKey: 'ccs_dc', typeName: 'CCS2', connector: 'DC', maxKW: 120,
-    ratePerKWh: 12.0, status: 'available', activeBookings: 1,
-  },
-  {
-    id: 'CH-B02', typeKey: 'ccs_dc', typeName: 'CCS2', connector: 'DC', maxKW: 150,
-    ratePerKWh: 13.5, status: 'out-of-service', activeBookings: 0,
-  },
-  {
-    id: 'CH-C01', typeKey: 'chademo_dc', typeName: 'CHAdeMO', connector: 'DC', maxKW: 50,
-    ratePerKWh: 10.0, status: 'available', activeBookings: 0,
-  },
-];
-
-const CHARGER_TYPES = [
-  { key: 'type2_ac',   name: 'Type 2',  connector: 'AC', maxKW: 22,  desc: 'Up to 22 kW · single or 3-phase' },
-  { key: 'ccs_dc',     name: 'CCS2',    connector: 'DC', maxKW: 150, desc: 'Up to 150 kW · fast charging' },
-  { key: 'chademo_dc', name: 'CHAdeMO', connector: 'DC', maxKW: 50,  desc: 'Up to 50 kW · legacy Japanese spec' },
-];
+/* Normalize a row from GET /charger-types/ into the shape the picker uses. */
+function normalizeChargerType(t) {
+  return {
+    typeId:    t.type_id,
+    name:      t.type_name,
+    connector: t.charging_standard,
+    maxKW:     parseFloat(t.max_power_kw),
+    desc:      `Up to ${parseFloat(t.max_power_kw)} kW · ${t.charging_standard}`,
+  };
+}
 
 /* ============ Rate cell (inline editor) ============ */
 function RateCell({ value, onChange, chargerId }) {
@@ -114,9 +87,9 @@ function RateCell({ value, onChange, chargerId }) {
 }
 
 /* ============ Add Charger Modal ============ */
-function AddModal({ onClose, onAdd }) {
+function AddModal({ onClose, onAdd, stationId, chargerTypes }) {
   const [leaving, setLeaving] = useState(false);
-  const [typeKey, setTypeKey] = useState('type2_ac');
+  const [typeId, setTypeId]   = useState(chargerTypes[0]?.typeId ?? null);
   const [rate, setRate]       = useState('7.5');
 
   function close() {
@@ -134,11 +107,11 @@ function AddModal({ onClose, onAdd }) {
   }, []);
 
   const rateNum = parseFloat(rate);
-  const valid = !isNaN(rateNum) && rateNum > 0;
+  const valid = !isNaN(rateNum) && rateNum > 0 && typeId != null;
 
   function submit() {
     if (!valid) return;
-    onAdd({ typeKey, ratePerKWh: rateNum });
+    onAdd({ typeId, ratePerKWh: rateNum });
   }
 
   return (
@@ -162,16 +135,25 @@ function AddModal({ onClose, onAdd }) {
         <div className="modal-body">
           <div className="field">
             <label>Charger type</label>
+            {chargerTypes.length === 0 ? (
+              <div className="warn-box">
+                <span className="w-ico" aria-hidden="true"><Ico.Warn width="16" height="16"/></span>
+                <p>
+                  No charger types seeded in the database yet. Seed at least one row
+                  via <strong>POST /charger-types/</strong> before adding a charger.
+                </p>
+              </div>
+            ) : (
             <div className="type-picker" role="radiogroup" aria-label="Charger type">
-              {CHARGER_TYPES.map(t => (
+              {chargerTypes.map(t => (
                 <button
-                  key={t.key}
+                  key={t.typeId}
                   type="button"
                   role="radio"
-                  aria-checked={typeKey === t.key}
-                  className={`type-opt ${t.connector.toLowerCase()} ${typeKey === t.key ? 'on' : ''}`}
-                  data-type={t.key}
-                  onClick={() => setTypeKey(t.key)}
+                  aria-checked={typeId === t.typeId}
+                  className={`type-opt ${t.connector.toLowerCase()} ${typeId === t.typeId ? 'on' : ''}`}
+                  data-type={t.typeId}
+                  onClick={() => setTypeId(t.typeId)}
                 >
                   <span className="t-ico" aria-hidden="true"><Ico.Plug width="16" height="16"/></span>
                   <span className="t-txt">
@@ -187,6 +169,7 @@ function AddModal({ onClose, onAdd }) {
                 </button>
               ))}
             </div>
+            )}
           </div>
 
           <div className="field">
@@ -246,7 +229,7 @@ function DeleteModal({ charger, onClose, onConfirm }) {
         <div className="modal-body" style={{ paddingTop: 28 }}>
           <div className="delete-head-ico" aria-hidden="true"><Ico.Trash width="24" height="24"/></div>
           <div>
-            <div className="mh-eyebrow">{charger.id} · {charger.typeName}</div>
+            <div className="mh-eyebrow">CHG-{charger.id} · {charger.typeName}</div>
             <h2 id="del-title" className="delete-title">
               Delete this <em>charger?</em>
             </h2>
@@ -254,11 +237,9 @@ function DeleteModal({ charger, onClose, onConfirm }) {
           <div className="warn-box">
             <span className="w-ico" aria-hidden="true"><Ico.Warn width="16" height="16"/></span>
             <p>
-              <strong>{charger.id}</strong> has{' '}
-              <strong>
-                {charger.activeBookings} active booking{charger.activeBookings === 1 ? '' : 's'}
-              </strong>. If this charger has existing bookings, consider marking as{' '}
-              <strong>Out of Service</strong> instead — deletion is permanent.
+              Deletion is permanent. The backend will refuse this request if any
+              booking still references <strong>CHG-{charger.id}</strong> — in that
+              case, mark it as <strong>Out of Service</strong> instead.
             </p>
           </div>
         </div>
@@ -281,47 +262,40 @@ function DeleteModal({ charger, onClose, onConfirm }) {
 
 /* ============ Charger Row (desktop table) ============ */
 function ChargerRow({ c, onToggle, onRateChange, onDelete }) {
-  const statusLabel =
-    c.status === 'available' ? 'Available' :
-    c.status === 'in-use'    ? 'In use'    :
-                               'Out of service';
-  const statusClass =
-    c.status === 'available' ? 'on' :
-    c.status === 'in-use'    ? 'in-use' :
-                               'off';
+  const isAvail = c.status === 'available';
+  const statusLabel = isAvail ? 'Available' : 'Out of service';
+  const statusClass = isAvail ? 'on' : 'off';
 
   return (
     <tr data-charger-id={c.id} data-status={c.status} id={`charger-${c.id}`}>
-      <td><span className="ch-id">{c.id}</span></td>
+      <td><span className="ch-id">CHG-{c.id}</span></td>
       <td>
         <div className="ch-type-cell">
-          <span className={`ch-type-ico ${c.connector.toLowerCase()}`} aria-hidden="true">
+          <span className={`ch-type-ico ${c.standard.toLowerCase()}`} aria-hidden="true">
             <Ico.Plug width="16" height="16"/>
           </span>
           <div>
             <div className="ch-type-name">
               {c.typeName}{' '}
-              <span className={`badge ${c.connector.toLowerCase()}`} style={{ marginLeft: 6, verticalAlign: 'middle' }}>
-                {c.connector}
+              <span className={`badge ${c.standard.toLowerCase()}`} style={{ marginLeft: 6, verticalAlign: 'middle' }}>
+                {c.standard}
               </span>
             </div>
-            <div className="ch-type-connector">{c.typeKey.toUpperCase().replace('_', '-')}</div>
+            <div className="ch-type-connector">TYPE-{c.typeId}</div>
           </div>
         </div>
       </td>
-      <td><span className="power"><em>{c.maxKW}</em> kW</span></td>
-      <td><RateCell value={c.ratePerKWh} onChange={(v) => onRateChange(c.id, v)} chargerId={c.id}/></td>
+      <td><span className="power"><em>{c.maxKw}</em> kW</span></td>
+      <td><RateCell value={c.ratePerKwh} onChange={(v) => onRateChange(c.id, v)} chargerId={c.id}/></td>
       <td>
         <div className="status-cell">
           <button
-            className={`toggle ${c.status !== 'out-of-service' ? 'on' : ''}`}
+            className={`toggle ${isAvail ? 'on' : ''}`}
             data-action="toggle-status"
             data-charger-id={c.id}
-            aria-pressed={c.status !== 'out-of-service'}
-            aria-label={`Toggle status for ${c.id}`}
-            disabled={c.status === 'in-use'}
-            title={c.status === 'in-use' ? 'Cannot change while in use' : ''}
-            onClick={() => onToggle(c.id)}
+            aria-pressed={isAvail}
+            aria-label={`Toggle status for CHG-${c.id}`}
+            onClick={() => onToggle(c)}
           />
           <span className={`status-pill ${statusClass}`}>{statusLabel}</span>
         </div>
@@ -329,19 +303,10 @@ function ChargerRow({ c, onToggle, onRateChange, onDelete }) {
       <td>
         <div className="row-actions">
           <button
-            className="icon-action"
-            data-action="edit-charger"
-            data-charger-id={c.id}
-            aria-label={`Edit ${c.id}`}
-            title="Edit"
-          >
-            <Ico.Edit width="15" height="15"/>
-          </button>
-          <button
             className="icon-action danger"
             data-action="delete-charger"
             data-charger-id={c.id}
-            aria-label={`Delete ${c.id}`}
+            aria-label={`Delete CHG-${c.id}`}
             title="Delete"
             onClick={() => onDelete(c)}
           >
@@ -355,28 +320,23 @@ function ChargerRow({ c, onToggle, onRateChange, onDelete }) {
 
 /* ============ Charger Card (mobile) ============ */
 function ChargerCard({ c, onToggle, onRateChange, onDelete }) {
-  const statusLabel =
-    c.status === 'available' ? 'Available' :
-    c.status === 'in-use'    ? 'In use'    :
-                               'Out of service';
-  const statusClass =
-    c.status === 'available' ? 'on' :
-    c.status === 'in-use'    ? 'in-use' :
-                               'off';
+  const isAvail = c.status === 'available';
+  const statusLabel = isAvail ? 'Available' : 'Out of service';
+  const statusClass = isAvail ? 'on' : 'off';
 
   return (
     <div className="cg-card" data-charger-id={c.id} id={`charger-card-${c.id}`}>
       <div className="cg-top">
         <div className="ch-type-cell">
-          <span className={`ch-type-ico ${c.connector.toLowerCase()}`} aria-hidden="true">
+          <span className={`ch-type-ico ${c.standard.toLowerCase()}`} aria-hidden="true">
             <Ico.Plug width="16" height="16"/>
           </span>
           <div>
-            <div className="ch-id" style={{ fontSize: 11 }}>{c.id}</div>
+            <div className="ch-id" style={{ fontSize: 11 }}>CHG-{c.id}</div>
             <div className="ch-type-name" style={{ fontSize: 15 }}>
               {c.typeName}
-              <span className={`badge ${c.connector.toLowerCase()}`} style={{ marginLeft: 6 }}>
-                {c.connector}
+              <span className={`badge ${c.standard.toLowerCase()}`} style={{ marginLeft: 6 }}>
+                {c.standard}
               </span>
             </div>
           </div>
@@ -386,36 +346,25 @@ function ChargerCard({ c, onToggle, onRateChange, onDelete }) {
       <div className="cg-kv">
         <div className="cell">
           <span className="lbl">Max power</span>
-          <span className="power"><em>{c.maxKW}</em> kW</span>
+          <span className="power"><em>{c.maxKw}</em> kW</span>
         </div>
         <div className="cell">
           <span className="lbl">Rate</span>
-          <RateCell value={c.ratePerKWh} onChange={(v) => onRateChange(c.id, v)} chargerId={c.id}/>
+          <RateCell value={c.ratePerKwh} onChange={(v) => onRateChange(c.id, v)} chargerId={c.id}/>
         </div>
       </div>
       <div className="cg-foot">
         <div className="status-cell">
           <button
-            className={`toggle ${c.status !== 'out-of-service' ? 'on' : ''}`}
+            className={`toggle ${isAvail ? 'on' : ''}`}
             data-action="toggle-status"
             data-charger-id={c.id}
-            aria-pressed={c.status !== 'out-of-service'}
-            disabled={c.status === 'in-use'}
-            onClick={() => onToggle(c.id)}
+            aria-pressed={isAvail}
+            onClick={() => onToggle(c)}
           />
-          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-            {c.status === 'in-use' ? 'Locked · in use' : 'Toggle service'}
-          </span>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Toggle service</span>
         </div>
         <div className="row-actions">
-          <button
-            className="icon-action"
-            data-action="edit-charger"
-            data-charger-id={c.id}
-            aria-label="Edit"
-          >
-            <Ico.Edit width="15" height="15"/>
-          </button>
           <button
             className="icon-action danger"
             data-action="delete-charger"
@@ -433,18 +382,47 @@ function ChargerCard({ c, onToggle, onRateChange, onDelete }) {
 
 /* ============ App ============ */
 function App() {
-  const [chargers, setChargers] = useState(INITIAL_CHARGERS);
-  const [filter, setFilter]     = useState('all');
-  const [showAdd, setShowAdd]   = useState(false);
-  const [toDelete, setToDelete] = useState(null);
-  const [toast, setToast]       = useState(null);
+  const session = getSession();
+  const MANAGER = useMemo(() => {
+    if (!session || !session.manager_id) return { name: 'Manager', role: 'Network Manager', initials: 'M' };
+    return { name: `Manager #${session.manager_id}`, role: 'Network Manager', initials: 'M' };
+  }, []);
+  const MANAGER_ID = session ? session.manager_id : null;
+
+  const [station, setStation]           = useState(null);
+  const [chargers, setChargers]         = useState([]);
+  const [chargerTypes, setChargerTypes] = useState([]);
+  const [loadErr, setLoadErr]           = useState('');
+  const [filter, setFilter]             = useState('all');
+  const [showAdd, setShowAdd]           = useState(false);
+  const [toDelete, setToDelete]         = useState(null);
+  const [toast, setToast]               = useState(null);
 
   function flash(msg) { setToast(msg); }
+
+  async function loadAll() {
+    if (!URL_STATION_ID) { setLoadErr('Missing ?station= in URL'); return; }
+    try {
+      const [allStations, chs, types] = await Promise.all([
+        api('/stations'),
+        api(`/station/${URL_STATION_ID}/chargers/`),
+        api('/charger-types/'),
+      ]);
+      const match = allStations.find(s => s.station_id === URL_STATION_ID);
+      setStation(match ? normalizeStation(match) : { id: URL_STATION_ID, name: `Station ${URL_STATION_ID}`, address: '' });
+      setChargers(chs.map(normalizeCharger));
+      setChargerTypes(types.map(normalizeChargerType));
+      setLoadErr('');
+    } catch (e) {
+      setLoadErr(e.message || 'Failed to load');
+    }
+  }
+
+  useEffect(() => { loadAll(); }, []);
 
   const counts = useMemo(() => ({
     all:              chargers.length,
     available:        chargers.filter(c => c.status === 'available').length,
-    'in-use':         chargers.filter(c => c.status === 'in-use').length,
     'out-of-service': chargers.filter(c => c.status === 'out-of-service').length,
   }), [chargers]);
 
@@ -455,47 +433,63 @@ function App() {
 
   const totals = useMemo(() => ({
     count:   chargers.length,
-    totalKW: chargers.reduce((a, c) => a + c.maxKW, 0),
+    totalKW: chargers.reduce((a, c) => a + (c.maxKw || 0), 0),
     avgRate: chargers.length
-      ? chargers.reduce((a, c) => a + c.ratePerKWh, 0) / chargers.length
+      ? chargers.reduce((a, c) => a + c.ratePerKwh, 0) / chargers.length
       : 0,
   }), [chargers]);
 
-  function toggleStatus(id) {
-    setChargers(list => list.map(c => {
-      if (c.id !== id) return c;
-      if (c.status === 'in-use') return c;
-      return { ...c, status: c.status === 'available' ? 'out-of-service' : 'available' };
-    }));
+  async function toggleStatus(c) {
+    const nextUi = c.status === 'available' ? 'out-of-service' : 'available';
+    try {
+      await api(`/chargers/${c.id}?manager_id=${MANAGER_ID}`, {
+        method: 'PATCH',
+        body: { status: STATUS.charger.toAPI[nextUi] },
+      });
+      await loadAll();
+      flash(`Charger ${nextUi === 'available' ? 'enabled' : 'disabled'}`);
+    } catch (e) {
+      flash(e.message || 'Toggle failed');
+    }
   }
 
-  function rateChange(id, newRate) {
-    setChargers(list => list.map(c => c.id === id ? { ...c, ratePerKWh: newRate } : c));
-    flash(`Rate updated · ฿${newRate.toFixed(2)}/kWh`);
+  async function rateChange(id, newRate) {
+    try {
+      await api(`/chargers/${id}?manager_id=${MANAGER_ID}`, {
+        method: 'PATCH',
+        body: { rate_per_kwh: newRate },
+      });
+      setChargers(list => list.map(c => c.id === id ? { ...c, ratePerKwh: newRate } : c));
+      flash(`Rate updated · ฿${newRate.toFixed(2)}/kWh`);
+    } catch (e) {
+      flash(e.message || 'Update failed');
+    }
   }
 
-  function addCharger({ typeKey, ratePerKWh }) {
-    const type = CHARGER_TYPES.find(t => t.key === typeKey);
-    const idx = chargers.length + 1;
-    const id = 'CH-' + String.fromCharCode(65 + Math.min(idx - 1, 25)) + String(idx).padStart(2, '0');
-    const newCh = {
-      id, typeKey,
-      typeName: type.name,
-      connector: type.connector,
-      maxKW: type.maxKW,
-      ratePerKWh,
-      status: 'available',
-      activeBookings: 0,
-    };
-    setChargers(list => [...list, newCh]);
-    setShowAdd(false);
-    flash(`Added · ${id} · ${type.name}`);
+  async function addCharger({ typeId, ratePerKWh }) {
+    try {
+      await api(`/stations/${URL_STATION_ID}/chargers/`, {
+        method: 'POST',
+        body: { type_id: typeId, rate_per_kwh: ratePerKWh },
+      });
+      setShowAdd(false);
+      await loadAll();
+      flash('Charger added');
+    } catch (e) {
+      flash(e.message || 'Add failed');
+    }
   }
 
-  function doDelete(id) {
-    setChargers(list => list.filter(c => c.id !== id));
-    setToDelete(null);
-    flash(`Deleted · ${id}`);
+  async function doDelete(id) {
+    try {
+      await api(`/chargers/${id}?manager_id=${MANAGER_ID}`, { method: 'DELETE' });
+      setToDelete(null);
+      await loadAll();
+      flash(`Deleted · CHG-${id}`);
+    } catch (e) {
+      flash(e.message || 'Delete failed');
+      setToDelete(null);
+    }
   }
 
   return (
@@ -504,28 +498,31 @@ function App() {
         tag="Manager"
         user={MANAGER}
         hasNotifications={false}
+        onLogout={() => logout('../login/index.html')}
       />
 
       <div className="page">
         <nav className="crumbs" aria-label="Breadcrumb">
           <a href="../manager-dashboard/index.html" data-route="dashboard">Dashboard</a>
           <span className="sep">/</span>
-          <a href="#" data-route={`station-${STATION.id}`}>{STATION.name}</a>
+          <a href="#" data-route={`station-${station?.id}`}>{station?.name || `Station ${URL_STATION_ID ?? ''}`}</a>
           <span className="sep">/</span>
           <span className="here">Chargers</span>
         </nav>
 
-        <section className="station-head" aria-labelledby="st-name" data-station-id={STATION.id}>
+        <section className="station-head" aria-labelledby="st-name" data-station-id={station?.id}>
           <div className="sh-left">
-            <span className="sh-eyebrow">Station · {STATION.id}</span>
+            <span className="sh-eyebrow">Station · EVC-{station?.id ?? URL_STATION_ID ?? '—'}</span>
             <h1 className="sh-name" id="st-name">
-              {STATION.name.split(' ').slice(0, -1).join(' ')}{' '}
-              <em>{STATION.name.split(' ').slice(-1)}.</em>
+              {station?.name || (loadErr ? <em>Not found.</em> : <em>Loading…</em>)}
             </h1>
-            <div className="sh-addr">
-              <Ico.Pin width="14" height="14"/>
-              <span>{STATION.address}</span>
-            </div>
+            {station?.address && (
+              <div className="sh-addr">
+                <Ico.Pin width="14" height="14"/>
+                <span>{station.address}</span>
+              </div>
+            )}
+            {loadErr && <div className="sh-addr" style={{ color: 'var(--danger)' }}>{loadErr}</div>}
           </div>
           <div className="sh-meta">
             <div className="cell">
@@ -567,7 +564,6 @@ function App() {
           {[
             ['all',            'All'],
             ['available',      'Available'],
-            ['in-use',         'In use'],
             ['out-of-service', 'Out of service'],
           ].map(([k, l]) => (
             <button
@@ -642,7 +638,7 @@ function App() {
         </button>
       </div>
 
-      {showAdd && <AddModal onClose={() => setShowAdd(false)} onAdd={addCharger}/>}
+      {showAdd && <AddModal onClose={() => setShowAdd(false)} onAdd={addCharger} stationId={URL_STATION_ID} chargerTypes={chargerTypes}/>}
       {toDelete && <DeleteModal charger={toDelete} onClose={() => setToDelete(null)} onConfirm={doDelete}/>}
 
       <Toast message={toast} onClose={() => setToast(null)} />

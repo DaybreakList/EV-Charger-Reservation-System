@@ -5,107 +5,20 @@
    are local to this page.
    ============================================================= */
 
-const { useState, useMemo } = React;
-const { BrandMark, Ico, BottomNav } = window.EVShared;
+const { useState, useMemo, useEffect } = React;
+const { BrandMark, Ico, BottomNav, api, normalizeStation } = window.EVShared;
 
-/* =============================================================
-   MOCK DATA — replace with API call when backend is ready.
-   Shape matches what Station Detail, Booking, Manager Dashboard
-   and Charger Management will also consume.
+/* Decorative pin positions on the stylized map (backend has no lat/lng
+   in the list responses — positions are purely visual). */
+function pseudoMapPos(stationId, idx) {
+  const seed = (String(stationId).charCodeAt(4) || 0) + idx * 37;
+  return {
+    mapX: 15 + (seed * 13 % 70),
+    mapY: 15 + (seed * 7  % 65),
+  };
+}
 
-   // TODO (backend integration):
-   //   const res = await fetch('/api/stations?near=lat,lng');
-   //   const stations = await res.json();
-   ============================================================= */
-const MOCK_STATIONS = [
-  {
-    id: 'EVC-2041',
-    name: 'Green Park Charger',
-    address: '88 Sukhumvit Soi 24, Khlong Tan, Bangkok',
-    status: 'active',
-    distanceKm: 0.8,
-    drivingMins: 3,
-    connectors: [{ type: 'CCS2', kw: 150 }, { type: 'Type 2', kw: 22 }],
-    ports: { available: 4, total: 6 },
-    pricePerKwh: 7.5,
-    rating: 4.8,
-    operator: 'EV Charger Network',
-    mapX: 42, mapY: 38,
-  },
-  {
-    id: 'EVC-2042',
-    name: 'Emporium Rooftop',
-    address: '622 Sukhumvit Rd, Khlong Ton Nuea, Bangkok',
-    status: 'active',
-    distanceKm: 1.4,
-    drivingMins: 6,
-    connectors: [{ type: 'CCS2', kw: 120 }, { type: 'CHAdeMO', kw: 50 }],
-    ports: { available: 2, total: 4 },
-    pricePerKwh: 8.2,
-    rating: 4.6,
-    operator: 'EV Charger Network',
-    mapX: 58, mapY: 30,
-  },
-  {
-    id: 'EVC-2043',
-    name: 'Lumpini Riverside',
-    address: '12 Rama IV Rd, Pathum Wan, Bangkok',
-    status: 'active',
-    distanceKm: 2.3,
-    drivingMins: 8,
-    connectors: [{ type: 'Type 2', kw: 22 }],
-    ports: { available: 3, total: 3 },
-    pricePerKwh: 6.9,
-    rating: 4.9,
-    operator: 'EV Charger Network',
-    mapX: 28, mapY: 58,
-  },
-  {
-    id: 'EVC-2044',
-    name: 'Terminal 21 Hub',
-    address: '2/88 Sukhumvit Soi 19, Asoke, Bangkok',
-    status: 'inactive',
-    distanceKm: 3.1,
-    drivingMins: 12,
-    connectors: [{ type: 'CCS2', kw: 150 }],
-    ports: { available: 0, total: 8 },
-    pricePerKwh: 7.8,
-    rating: 4.3,
-    operator: 'EV Charger Network',
-    mapX: 72, mapY: 46,
-  },
-  {
-    id: 'EVC-2045',
-    name: 'Silom Central',
-    address: '191 Silom Rd, Bang Rak, Bangkok',
-    status: 'active',
-    distanceKm: 4.6,
-    drivingMins: 15,
-    connectors: [{ type: 'CCS2', kw: 180 }, { type: 'Type 2', kw: 22 }],
-    ports: { available: 5, total: 10 },
-    pricePerKwh: 8.5,
-    rating: 4.7,
-    operator: 'EV Charger Network',
-    mapX: 18, mapY: 72,
-  },
-  {
-    id: 'EVC-2046',
-    name: 'Chatuchak North',
-    address: '4 Kamphaeng Phet 2 Rd, Chatuchak, Bangkok',
-    status: 'active',
-    distanceKm: 6.2,
-    drivingMins: 22,
-    connectors: [{ type: 'CCS2', kw: 120 }, { type: 'CHAdeMO', kw: 50 }],
-    ports: { available: 1, total: 4 },
-    pricePerKwh: 6.5,
-    rating: 4.5,
-    operator: 'EV Charger Network',
-    mapX: 48, mapY: 14,
-  },
-];
-
-/* Current user's mock location (normalized 0..100 on the map) */
-const USER_LOC = { mapX: 50, mapY: 50, label: 'Sukhumvit 21, Bangkok' };
+const USER_LOC = { mapX: 50, mapY: 50, label: 'Your location' };
 
 /* ============ Map placeholder ============ */
 function MapPlaceholder({ stations, activeId, onPinClick, showMe, locating, hasLocation, onLocate }) {
@@ -205,6 +118,7 @@ function MapPlaceholder({ stations, activeId, onPinClick, showMe, locating, hasL
 /* ============ Station card ============ */
 function StationCard({ s, focused, onFocus }) {
   const isActive = s.status === 'active';
+  const hasDistance = s.distanceKm != null;
   return (
     <article
       className={`station ${!isActive ? 'inactive' : ''} ${focused ? 'focused' : ''}`}
@@ -218,30 +132,32 @@ function StationCard({ s, focused, onFocus }) {
         <div className="st-head">
           <div className="st-name">
             <span>{s.name}</span>
-            <span className="st-id">{s.id}</span>
+            <span className="st-id">EVC-{s.id}</span>
           </div>
-          <div className="st-addr">{s.address}</div>
+          <div className="st-addr">{s.address || '—'}</div>
         </div>
         <span className={`badge ${isActive ? 'badge-active' : 'badge-inactive'}`}>
           {isActive ? 'Active' : 'Inactive'}
         </span>
       </div>
 
-      <div className="st-meta">
-        <div className="meta-cell">
-          <span className="lbl">Distance</span>
-          <span className="val">{s.distanceKm.toFixed(1)}<small>km</small></span>
+      {hasDistance && (
+        <div className="st-meta">
+          <div className="meta-cell">
+            <span className="lbl">Distance</span>
+            <span className="val">{s.distanceKm.toFixed(1)}<small>km</small></span>
+          </div>
+          <div className="meta-cell">
+            <span className="lbl">Drive time</span>
+            <span className="val">{s.durationText || '—'}</span>
+          </div>
         </div>
-        <div className="meta-cell">
-          <span className="lbl">Drive time</span>
-          <span className="val">{s.drivingMins}<small>mins</small></span>
-        </div>
-      </div>
+      )}
 
       <div className="st-foot">
-        <span className="ports-badge" aria-label={`${s.ports.available} of ${s.ports.total} ports available`}>
+        <span className="ports-badge">
           <span className="dot" aria-hidden="true"/>
-          <span>{s.ports.available}/{s.ports.total} ports · {s.connectors[0].kw}kW</span>
+          <span>{s.managerName ? `By ${s.managerName}` : 'Charging station'}</span>
         </span>
         <a
           href={`../station-booking/index.html?id=${s.id}`}
@@ -277,17 +193,17 @@ function SkeletonCard() {
 }
 
 /* ============ Empty state ============ */
-function EmptyState({ onRetry }) {
+function EmptyState({ onRetry, message }) {
   return (
     <div className="empty" role="status">
       <div className="empty-ico" aria-hidden="true">
         <Ico.Search width="28" height="28"/>
       </div>
-      <h3>No stations <em>nearby.</em></h3>
-      <p>We couldn't find charging stations within your radius. Try expanding the search or checking back shortly.</p>
+      <h3>No stations <em>found.</em></h3>
+      <p>{message || "We couldn't find charging stations. Try refreshing or checking back shortly."}</p>
       <button className="btn btn-primary btn-sm" onClick={onRetry}>
         <Ico.Crosshair width="14" height="14"/>
-        Expand radius
+        Refresh
       </button>
     </div>
   );
@@ -295,32 +211,79 @@ function EmptyState({ onRetry }) {
 
 /* ============ App ============ */
 function App() {
-  // demo state switcher: 'data' | 'loading' | 'empty'
-  const [viewState, setViewState] = useState('data');
-  const [sort, setSort] = useState('distance'); // 'distance' | 'time'
+  const [rawStations, setRawStations] = useState([]);
+  const [viewState, setViewState] = useState('loading'); // 'data' | 'loading' | 'empty' | 'error'
+  const [errorMsg, setErrorMsg] = useState('');
   const [locating, setLocating] = useState(false);
   const [hasLocation, setHasLocation] = useState(false);
   const [activeStation, setActiveStation] = useState(null);
 
+  async function loadAll() {
+    setViewState('loading');
+    setErrorMsg('');
+    try {
+      const data = await api('/stations');
+      const norm = data.map((s, i) => ({ ...normalizeStation(s), ...pseudoMapPos(s.station_id, i) }));
+      setRawStations(norm);
+      setViewState(norm.length ? 'data' : 'empty');
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to load stations');
+      setViewState('error');
+    }
+  }
+
+  async function loadNearby(lat, lng) {
+    setViewState('loading');
+    setErrorMsg('');
+    try {
+      const data = await api(`/stations/nearby?lat=${lat}&lng=${lng}`);
+      const norm = data.map((s, i) => ({ ...normalizeStation(s), ...pseudoMapPos(s.station_id, i) }));
+      setRawStations(norm);
+      setViewState(norm.length ? 'data' : 'empty');
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to load nearby stations');
+      setViewState('error');
+    }
+  }
+
+  useEffect(() => { loadAll(); }, []);
+
   const stations = useMemo(() => {
-    const arr = [...MOCK_STATIONS];
-    if (sort === 'distance') arr.sort((a, b) => a.distanceKm - b.distanceKm);
-    else                     arr.sort((a, b) => a.drivingMins - b.drivingMins);
+    if (!hasLocation) return rawStations;
+    const arr = [...rawStations];
+    arr.sort((a, b) =>
+      (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
     return arr;
-  }, [sort]);
+  }, [rawStations, hasLocation]);
 
   function useMyLocation() {
-    if (hasLocation) { setHasLocation(false); return; }
+    if (hasLocation) {
+      setHasLocation(false);
+      loadAll();
+      return;
+    }
+    if (!navigator.geolocation) {
+      setErrorMsg('Geolocation not supported by your browser');
+      return;
+    }
     setLocating(true);
-    setTimeout(() => {
-      setLocating(false);
-      setHasLocation(true);
-    }, 1100);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setLocating(false);
+        setHasLocation(true);
+        await loadNearby(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        setLocating(false);
+        setErrorMsg(err.message || 'Could not get your location');
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
   }
 
   const showStations = viewState === 'data';
   const showLoading  = viewState === 'loading';
-  const showEmpty    = viewState === 'empty';
+  const showEmpty    = viewState === 'empty' || viewState === 'error';
 
   return (
     <>
@@ -392,22 +355,16 @@ function App() {
                 <>Results <span className="count">{stations.length}</span></>
               ) : showLoading ? 'Loading' : 'No results'}
             </span>
-            {showStations && (
-              <button
-                className="sort-btn"
-                onClick={() => setSort(s => s === 'distance' ? 'time' : 'distance')}
-                aria-label={`Change sort. Currently sorting by ${sort === 'distance' ? 'distance' : 'drive time'}.`}
-              >
-                <Ico.Sort width="12" height="12"/>
-                <span className="sort-lbl">Sort</span>
-                <span>{sort === 'distance' ? 'Distance' : 'Drive time'}</span>
-              </button>
+            {hasLocation && showStations && (
+              <span className="sort-hint" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--muted)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                Sorted · Nearest first
+              </span>
             )}
           </div>
 
           <div className="reveal" style={{ display: 'grid', gap: 12 }}>
             {showLoading && Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i}/>)}
-            {showEmpty && <EmptyState onRetry={() => setViewState('data')}/>}
+            {showEmpty && <EmptyState onRetry={loadAll} message={errorMsg}/>}
             {showStations && stations.map(s => (
               <StationCard
                 key={s.id}
@@ -421,13 +378,6 @@ function App() {
 
         {/* ===== Bottom nav (shared component) ===== */}
         <BottomNav active="home" />
-      </div>
-
-      {/* ===== Demo state switcher ===== */}
-      <div className="state-switch" role="group" aria-label="Preview state">
-        <button className={viewState === 'data'    ? 'on' : ''} onClick={() => setViewState('data')}>Data</button>
-        <button className={viewState === 'loading' ? 'on' : ''} onClick={() => setViewState('loading')}>Loading</button>
-        <button className={viewState === 'empty'   ? 'on' : ''} onClick={() => setViewState('empty')}>Empty</button>
       </div>
     </>
   );

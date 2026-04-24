@@ -322,6 +322,15 @@ def add_charger_type(charger_type: schemas.ChargerTypeCreate, db: Session = Depe
     db.commit()
     return {"Status": "Success", "type_id": new_type_id}
 
+@app.get("/charger-types/", response_model=list[schemas.ChargerTypeResponse])
+def list_charger_types(db: Session = Depends(get_db)):
+    query = text("""
+        SELECT type_id, type_name, max_power_kw, charging_standard
+        FROM charger_types
+        ORDER BY type_id
+    """)
+    return db.execute(query).mappings().all()
+
 @app.post("/stations/")
 def add_station(station: schemas.StationBase, manager_id: int, db: Session = Depends(get_db)):
     try:

@@ -5,85 +5,15 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo, useRef } = React;
-const { BrandMark, Ico } = window.EVShared;
+const { BrandMark, Ico, api, normalizeStation, normalizeCharger, getSession } = window.EVShared;
 
-/* =============================================================
-   MOCK DATA — replace with API calls when backend is ready.
-   // TODO (backend integration):
-   //   const res = await fetch(`/api/stations/${id}`);
-   //   const { station, chargers } = await res.json();
-   //   const slotRes = await fetch(`/api/chargers/${chargerId}/slots?date=${dateIso}`);
-   //   const { slots } = await slotRes.json();
-   ============================================================= */
-const MOCK_STATION = {
-  id: 'EVC-2041',
-  name: 'Green Park Charger',
-  address: '88 Sukhumvit Soi 24, Khlong Tan, Bangkok 10110',
-  status: 'active',
-  operator: 'EV Charger Network',
-};
-
-const MOCK_CHARGERS = [
-  {
-    id: 'CHG-A01',
-    typeName: 'CCS Combo 2',
-    standard: 'DC',
-    maxKw: 150,
-    ratePerKwh: 8.5,
-    status: 'available',
-    connectorIcon: 'ccs',
-  },
-  {
-    id: 'CHG-A02',
-    typeName: 'CHAdeMO',
-    standard: 'DC',
-    maxKw: 50,
-    ratePerKwh: 7.9,
-    status: 'busy',
-    connectorIcon: 'chademo',
-  },
-  {
-    id: 'CHG-B01',
-    typeName: 'Type 2 AC',
-    standard: 'AC',
-    maxKw: 22,
-    ratePerKwh: 6.5,
-    status: 'available',
-    connectorIcon: 'type2',
-  },
-  {
-    id: 'CHG-B02',
-    typeName: 'Type 2 AC',
-    standard: 'AC',
-    maxKw: 11,
-    ratePerKwh: 5.9,
-    status: 'offline',
-    connectorIcon: 'type2',
-  },
-];
-
-/* 45-minute slots from 08:00 to 22:00 — taken flags keyed by charger+date. */
-function buildSlotsFor(chargerId, dateIso) {
-  const slots = [];
-  const start = new Date(`${dateIso}T08:00:00`);
-  const end   = new Date(`${dateIso}T22:00:00`);
-  let cur = new Date(start);
-  let seed = (chargerId.charCodeAt(4) * 31 + dateIso.charCodeAt(8) * 17) >>> 0;
-  const rnd = () => { seed = (seed * 1103515245 + 12345) >>> 0; return (seed / 0xffffffff); };
-  while (cur < end) {
-    const iso = cur.toISOString();
-    const hh = String(cur.getHours()).padStart(2, '0');
-    const mm = String(cur.getMinutes()).padStart(2, '0');
-    slots.push({
-      startIso: iso,
-      label: `${hh}:${mm}`,
-      durationMin: 45,
-      taken: rnd() < 0.32,
-    });
-    cur = new Date(cur.getTime() + 45 * 60 * 1000);
-  }
-  return slots;
-}
+/* Pull station_id from the URL (?id=…). Fallback to 1 for a direct hit
+   so the page still renders something in dev. */
+const URL_STATION_ID = (() => {
+  const v = new URLSearchParams(window.location.search).get('id');
+  const n = parseInt(v, 10);
+  return isNaN(n) ? null : n;
+})();
 
 /* Today + next 6 days. */
 function buildDates() {
@@ -107,12 +37,10 @@ function buildDates() {
 
 /* ============ Charger Card ============ */
 function ChargerCard({ c, selected, onSelect }) {
-  const unavailable = c.status === 'offline';
-  const busy = c.status === 'busy';
-  const statusBadge =
-    c.status === 'available' ? <span className="badge-status-ok">Available</span> :
-    busy                     ? <span className="badge-status-busy">In use</span> :
-                               <span className="badge-status-off">Offline</span>;
+  const unavailable = c.status === 'out-of-service';
+  const statusBadge = unavailable
+    ? <span className="badge-status-off">Out of service</span>
+    : <span className="badge-status-ok">Available</span>;
 
   return (
     <article
@@ -127,7 +55,7 @@ function ChargerCard({ c, selected, onSelect }) {
         <div className="ch-head">
           <div className="ch-name">
             <span>{c.typeName}</span>
-            <span className="ch-code">{c.id}</span>
+            <span className="ch-code">CHG-{c.id}</span>
           </div>
           <div className="ch-type-row">
             <span className={c.standard === 'DC' ? 'badge-dc' : 'badge-ac'}>{c.standard}</span>
@@ -157,7 +85,7 @@ function ChargerCard({ c, selected, onSelect }) {
           onClick={() => onSelect(c.id)}
           aria-pressed={selected}
         >
-          {selected ? 'Selected' : (busy ? 'Select · queue' : 'Select')}
+          {selected ? 'Selected' : 'Select'}
           {!selected && <Ico.ArrowRight className="arrow" width="14" height="14"/>}
         </button>
       </div>
@@ -244,7 +172,7 @@ function Toast({ payload, onClose }) {
           <div className="toast-sub">
             <span className="mono">{payload.chargerId}</span> · {payload.dateLabel} · {payload.timeLabel}
             <div style={{ marginTop: 2 }}>
-              See you at {MOCK_STATION.name.split(' ').slice(0, 2).join(' ')}. A reminder will land 15 min before.
+              A reminder will land 15 min before your session.
             </div>
           </div>
         </div>
@@ -257,36 +185,101 @@ function Toast({ payload, onClose }) {
 /* ============ App ============ */
 function App() {
   const dates = useMemo(() => buildDates(), []);
+  const [station, setStation]                 = useState(null);
+  const [chargers, setChargers]               = useState([]);
+  const [loadErr, setLoadErr]                 = useState('');
   const [selectedCharger, setSelectedCharger] = useState(null);
   const [selectedDate, setSelectedDate]       = useState(dates[0].iso);
   const [selectedSlot, setSelectedSlot]       = useState(null);
+  const [slots, setSlots]                     = useState([]);
+  const [slotsLoading, setSlotsLoading]       = useState(false);
   const [toast, setToast]                     = useState(null);
+  const [submitErr, setSubmitErr]             = useState('');
 
-  const slots = useMemo(() => {
-    if (!selectedCharger) return [];
-    return buildSlotsFor(selectedCharger, selectedDate);
+  // Load station info + chargers on mount
+  useEffect(() => {
+    if (!URL_STATION_ID) { setLoadErr('Missing station id in URL'); return; }
+    (async () => {
+      try {
+        const [allStations, chs] = await Promise.all([
+          api('/stations'),
+          api(`/station/${URL_STATION_ID}/chargers/`),
+        ]);
+        const match = allStations.find(s => s.station_id === URL_STATION_ID);
+        setStation(match ? normalizeStation(match) : { id: URL_STATION_ID, name: `Station ${URL_STATION_ID}`, address: '', status: 'active' });
+        setChargers(chs.map(normalizeCharger));
+      } catch (err) {
+        setLoadErr(err.message || 'Failed to load station');
+      }
+    })();
+  }, []);
+
+  // Load 45-min slots for the selected charger+date
+  useEffect(() => {
+    if (!selectedCharger) { setSlots([]); return; }
+    let cancelled = false;
+    setSlotsLoading(true);
+    api(`/chargers/${selectedCharger}/available-slots?date=${selectedDate}`)
+      .then(raw => {
+        if (cancelled) return;
+        const now = Date.now();
+        const mapped = raw.map(r => {
+          const d = new Date(r.start_time);
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mm = String(d.getMinutes()).padStart(2, '0');
+          return {
+            startIso: r.start_time,
+            label: `${hh}:${mm}`,
+            durationMin: 45,
+            taken: !r.available || d.getTime() < now,
+          };
+        });
+        setSlots(mapped);
+      })
+      .catch(err => { if (!cancelled) setSubmitErr(err.message || 'Failed to load slots'); })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
+    return () => { cancelled = true; };
   }, [selectedCharger, selectedDate]);
 
-  useEffect(() => { setSelectedSlot(null); }, [selectedCharger, selectedDate]);
+  useEffect(() => { setSelectedSlot(null); setSubmitErr(''); }, [selectedCharger, selectedDate]);
 
-  const chargerObj = MOCK_CHARGERS.find(c => c.id === selectedCharger);
+  const chargerObj = chargers.find(c => c.id === selectedCharger);
   const slotObj    = slots.find(s => s.startIso === selectedSlot);
   const dateObj    = dates.find(d => d.iso === selectedDate);
 
   const canConfirm = !!(selectedCharger && selectedSlot);
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!canConfirm) return;
-    // TODO (backend): POST /api/bookings { chargerId, startIso }
-    setToast({
-      key: Date.now(),
-      chargerId: selectedCharger,
-      dateLabel: dateObj.isToday
-        ? 'Today'
-        : `${dateObj.dow.charAt(0) + dateObj.dow.slice(1).toLowerCase()} ${dateObj.dnum}`,
-      timeLabel: slotObj.label,
-    });
-    setSelectedSlot(null);
+    const session = getSession();
+    if (!session || !session.cust_id) {
+      setSubmitErr('Please sign in as a customer before booking.');
+      return;
+    }
+    setSubmitErr('');
+    try {
+      await api('/bookings/', {
+        method: 'POST',
+        body: {
+          cust_id:    session.cust_id,
+          charger_id: selectedCharger,
+          start_time: selectedSlot,
+        },
+      });
+      setToast({
+        key: Date.now(),
+        chargerId: `CHG-${selectedCharger}`,
+        dateLabel: dateObj.isToday
+          ? 'Today'
+          : `${dateObj.dow.charAt(0) + dateObj.dow.slice(1).toLowerCase()} ${dateObj.dnum}`,
+        timeLabel: slotObj.label,
+      });
+      setSelectedSlot(null);
+      // Refresh slots so the just-booked one flips to taken
+      setSlots(s => s.map(x => x.startIso === selectedSlot ? { ...x, taken: true } : x));
+    } catch (err) {
+      setSubmitErr(err.message || 'Booking failed');
+    }
   }
 
   // Scroll booking panel into view on mobile after picking a charger.
@@ -322,18 +315,32 @@ function App() {
         </header>
 
         {/* ===== Station header ===== */}
-        <section className="station-head reveal" id="station-header" data-station-id={MOCK_STATION.id}>
-          <span className="eyebrow">Station detail · {MOCK_STATION.id}</span>
-          <h1 className="title">Green Park <em>Charger.</em></h1>
-          <div className="st-addr-row">
-            <Ico.Pin width="16" height="16"/>
-            <span>{MOCK_STATION.address}</span>
-          </div>
+        <section className="station-head reveal" id="station-header" data-station-id={station?.id}>
+          <span className="eyebrow">Station detail · EVC-{station?.id ?? '—'}</span>
+          <h1 className="title">
+            {station?.name ? station.name : (loadErr ? <em>Not found.</em> : <em>Loading…</em>)}
+          </h1>
+          {station?.address && (
+            <div className="st-addr-row">
+              <Ico.Pin width="16" height="16"/>
+              <span>{station.address}</span>
+            </div>
+          )}
           <div className="head-meta">
-            <span className="badge badge-dot badge-active">Open now</span>
-            <span className="badge">4 chargers</span>
-            <span className="badge">2 AC · 2 DC</span>
-            <span className="badge">Operator · {MOCK_STATION.operator}</span>
+            {station && (
+              <span className={`badge badge-dot ${station.status === 'active' ? 'badge-active' : ''}`}>
+                {station.status === 'active' ? 'Active' : 'Inactive'}
+              </span>
+            )}
+            {chargers.length > 0 && (
+              <>
+                <span className="badge">{chargers.length} charger{chargers.length === 1 ? '' : 's'}</span>
+                <span className="badge">
+                  {chargers.filter(c => c.standard === 'AC').length} AC · {chargers.filter(c => c.standard === 'DC').length} DC
+                </span>
+              </>
+            )}
+            {loadErr && <span className="badge" style={{ color: 'var(--danger)' }}>{loadErr}</span>}
           </div>
         </section>
 
@@ -350,7 +357,10 @@ function App() {
             </div>
 
             <div className="charger-list reveal" id="charger-list">
-              {MOCK_CHARGERS.map(c => (
+              {chargers.length === 0 && !loadErr && (
+                <div className="sk-card"><div className="sk" style={{ height: 80 }}/></div>
+              )}
+              {chargers.map(c => (
                 <ChargerCard
                   key={c.id}
                   c={c}
@@ -369,7 +379,7 @@ function App() {
                 <h2>Today, or <em>soon.</em></h2>
               </div>
               <span className="hint">
-                {selectedCharger ? `Charger · ${selectedCharger}` : 'Select charger first'}
+                {selectedCharger ? `Charger · CHG-${selectedCharger}` : 'Select charger first'}
               </span>
             </div>
 
@@ -400,15 +410,19 @@ function App() {
                     <span className="lbl">45-min slots</span>
                     <span className="sub">
                       {selectedCharger
-                        ? <>{slots.filter(s => !s.taken).length} <em>open</em> · {slots.filter(s => s.taken).length} taken</>
+                        ? slotsLoading
+                          ? 'Loading…'
+                          : <>{slots.filter(s => !s.taken).length} <em>open</em> · {slots.filter(s => s.taken).length} taken</>
                         : 'Pick a charger'}
                     </span>
                   </div>
-                  <SlotGrid
-                    slots={slots.length ? slots : buildSlotsFor('CHG-A01', selectedDate)}
-                    selectedIso={selectedSlot}
-                    onPick={setSelectedSlot}
-                  />
+                  {selectedCharger && !slotsLoading && (
+                    <SlotGrid
+                      slots={slots}
+                      selectedIso={selectedSlot}
+                      onPick={setSelectedSlot}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -450,6 +464,9 @@ function App() {
                 ? <>฿{(chargerObj.ratePerKwh * chargerObj.maxKw * 0.75).toFixed(0)} <em>/ session</em></>
                 : '—'}
             </span>
+            {submitErr && (
+              <span style={{ color: 'var(--danger)', fontSize: 12, marginTop: 2 }}>{submitErr}</span>
+            )}
           </div>
           <button
             id="confirm-booking"
