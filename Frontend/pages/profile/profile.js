@@ -5,7 +5,7 @@
    ============================================================= */
 
 const { useState, useEffect } = React;
-const { BrandMark, Ico, BottomNav } = window.EVShared;
+const { BrandMark, Ico, BottomNav, Modal, Toast } = window.EVShared;
 const { api, auth } = window.EVApi;
 
 /* ---------- Helpers ---------- */
@@ -17,33 +17,140 @@ function getInitials(name) {
 }
 
 /* ---------- Icons (page-local) ---------- */
-function IcoUser(p)     { return <svg {...p} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>; }
-function IcoShield(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v5c0 5-3.5 9-8 10C7.5 20 4 16 4 11V6l8-3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>; }
-function IcoBell(p)     { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 8 3 8H3s3-1 3-8z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M10 20a2 2 0 104 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>; }
-function IcoCard(p)     { return <svg {...p} viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M2 10h20M6 15h3M12 15h2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>; }
-function IcoHelp(p)     { return <svg {...p} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 2-2.5 2.5-2.5 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>; }
 function IcoLogout(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M15 5H5v14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 8l4 4-4 4M18 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function IcoChevron(p)  { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
-function IcoBolt(p)     { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>; }
 
-/* ---------- MenuItem ---------- */
-function MenuItem({ icon, iconVariant = '', title, sub, danger, chevron = true, onClick, href }) {
-  const Tag = href ? 'a' : 'button';
+/* ---------- Edit Profile Modal ---------- */
+function EditProfileModal({ profile, role, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    first_name: profile.first_name || '',
+    last_name:  profile.last_name  || '',
+    email:      profile.email      || '',
+    phone:      profile.phone      || '',
+    car_model:  profile.car_model  || '',
+    tax_id:     profile.tax_id     || '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
+
+  const valid =
+    form.first_name.trim().length > 0 &&
+    form.last_name.trim().length  > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
+    form.phone.trim().length > 0 &&
+    (role === 'manager' ? form.tax_id.trim().length > 0 : form.car_model.trim().length > 0);
+
+  async function save() {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    setErrMsg('');
+    try {
+      // 1) update users table (name + email)
+      await api.updateUser(profile.user_id, {
+        first_name: form.first_name.trim(),
+        last_name:  form.last_name.trim(),
+        email:      form.email.trim(),
+      });
+      // 2) update role-specific fields
+      if (role === 'manager') {
+        await api.updateManager(auth.managerId(), {
+          phone:  form.phone.trim(),
+          tax_id: form.tax_id.trim(),
+        });
+      } else {
+        await api.updateCustomer(auth.custId(), {
+          phone:     form.phone.trim(),
+          car_model: form.car_model.trim(),
+        });
+      }
+      onSaved('Profile updated');
+    } catch (err) {
+      setErrMsg(err.message || 'Update failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    <Tag
-      className={`menu-item${danger ? ' danger' : ''}`}
-      onClick={onClick}
-      href={href}
-    >
-      <span className={`menu-ico${iconVariant ? ' ' + iconVariant : ''}`}>
-        {icon}
-      </span>
-      <span className="menu-txt">
-        <span className="menu-title">{title}</span>
-        {sub && <span className="menu-sub">{sub}</span>}
-      </span>
-      {chevron && <IcoChevron className="menu-chev" width="16" height="16" />}
-    </Tag>
+    <Modal open={true} onClose={onClose} labelledBy="edit-profile-title">
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal-head">
+          <div>
+            <div className="mh-eyebrow">Account</div>
+            <h2 id="edit-profile-title">Edit your <em>profile.</em></h2>
+          </div>
+          <button className="modal-close" aria-label="Close" onClick={onClose}>
+            <Ico.Close width="16" height="16"/>
+          </button>
+        </header>
+
+        <div className="modal-body">
+          <div className="row-2">
+            <div className="field">
+              <label htmlFor="ep-first">First name</label>
+              <div className="input-wrap">
+                <input id="ep-first" value={form.first_name}
+                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}/>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="ep-last">Last name</label>
+              <div className="input-wrap">
+                <input id="ep-last" value={form.last_name}
+                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}/>
+              </div>
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="ep-email">Email</label>
+            <div className="input-wrap">
+              <input id="ep-email" type="email" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}/>
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="ep-phone">Phone</label>
+            <div className="input-wrap">
+              <input id="ep-phone" type="tel" value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}/>
+            </div>
+          </div>
+
+          {role === 'manager' ? (
+            <div className="field">
+              <label htmlFor="ep-tax">Tax ID</label>
+              <div className="input-wrap">
+                <input id="ep-tax" value={form.tax_id}
+                  onChange={(e) => setForm({ ...form, tax_id: e.target.value })}/>
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="ep-car">Car model</label>
+              <div className="input-wrap">
+                <input id="ep-car" placeholder="e.g. Tesla Model 3" value={form.car_model}
+                  onChange={(e) => setForm({ ...form, car_model: e.target.value })}/>
+              </div>
+            </div>
+          )}
+
+          {errMsg && (
+            <div style={{ color: 'var(--danger)', fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}>
+              <Ico.Alert width="13" height="13"/> {errMsg}
+            </div>
+          )}
+        </div>
+
+        <footer className="modal-foot">
+          <button className="btn btn-secondary btn-lg" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button className="btn btn-primary btn-lg" disabled={!valid || submitting} onClick={save}>
+            {submitting ? 'Saving…' : 'Save changes'}
+          </button>
+        </footer>
+      </div>
+    </Modal>
   );
 }
 
@@ -52,6 +159,9 @@ function App() {
   const [stats, setStats]     = useState({ total: 0, completed: 0, kwh: 0 });
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [toast, setToast]       = useState(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   // Read session
   const custId    = auth.custId();
@@ -92,7 +202,13 @@ function App() {
       setStats(s);
       setLoading(false);
     });
-  }, [custId, managerId, role]);
+  }, [custId, managerId, role, reloadTick]);
+
+  function handleSaved(msg) {
+    setEditOpen(false);
+    setToast(msg);
+    setReloadTick(t => t + 1);
+  }
 
   function handleLogout() {
     if (!window.confirm('Log out of EV Charger?')) return;
@@ -167,6 +283,19 @@ function App() {
             </div>
           </div>
 
+          <button
+            className="action-btn"
+            onClick={() => setEditOpen(true)}
+            disabled={loading || !profile}
+          >
+            <span className="ico" aria-hidden="true"><Ico.Edit width="16" height="16"/></span>
+            <span className="txt">
+              <span className="t1">Edit profile</span>
+              <span className="t2">Update name, email, phone{role === 'manager' ? ', tax ID' : ', car model'}</span>
+            </span>
+            <IcoChevron className="chev" width="16" height="16"/>
+          </button>
+
           <button className="logout-btn-full" onClick={handleLogout}>
             <IcoLogout width="16" height="16" />
             Log out
@@ -181,6 +310,17 @@ function App() {
         bookings: '../booking-history/index.html',
         profile:  '#',
       }} />
+
+      {editOpen && profile && (
+        <EditProfileModal
+          profile={profile}
+          role={role}
+          onClose={() => setEditOpen(false)}
+          onSaved={handleSaved}
+        />
+      )}
+
+      <Toast message={toast} onClose={() => setToast(null)}/>
     </>
   );
 }

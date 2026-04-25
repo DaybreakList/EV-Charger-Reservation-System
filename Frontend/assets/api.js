@@ -86,6 +86,9 @@
     /* Profiles */
     getCustomerProfile(custId)       { return request(`/customers/${custId}`); },
     getManagerProfile(managerId)     { return request(`/managers/${managerId}`); },
+    updateUser(userId, patch)        { return request(`/users/${userId}`,            { method: 'PATCH', body: patch }); },
+    updateCustomer(custId, patch)    { return request(`/customers/${custId}`,        { method: 'PATCH', body: patch }); },
+    updateManager(managerId, patch)  { return request(`/managers/${managerId}`,      { method: 'PATCH', body: patch }); },
 
     /* Stations */
     getAllStations()                 { return request('/stations'); },

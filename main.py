@@ -261,6 +261,79 @@ def get_manager_profile(manager_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Manager not found")
     return row
 
+@app.patch("/users/{user_id}")
+def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
+    # -- Check user exists -- #
+    sql_check = text("SELECT user_id FROM users WHERE user_id = :uid")
+    if not db.execute(sql_check, {"uid": user_id}).fetchone():
+        raise HTTPException(status_code=404, detail="User not found")
+
+    updates = user.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    # -- If updating email, ensure it's not taken by another user -- #
+    if "email" in updates:
+        sql_email = text("""
+            SELECT user_id FROM users
+            WHERE email = :email AND user_id <> :uid
+        """)
+        if db.execute(sql_email, {"email": updates["email"], "uid": user_id}).fetchone():
+            raise HTTPException(status_code=400, detail="Email already in use")
+
+    set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+    sql_update = text(f"UPDATE users SET {set_clause} WHERE user_id = :uid")
+
+    try:
+        db.execute(sql_update, {**updates, "uid": user_id})
+        db.commit()
+        return {"Status": "Success", "user_id": user_id, "updated": updates}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/customers/{cust_id}")
+def update_customer(cust_id: int, customer: schemas.CustomerUpdate, db: Session = Depends(get_db)):
+    sql_check = text("SELECT cust_id FROM customers WHERE cust_id = :cid")
+    if not db.execute(sql_check, {"cid": cust_id}).fetchone():
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    updates = customer.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+    sql_update = text(f"UPDATE customers SET {set_clause} WHERE cust_id = :cid")
+
+    try:
+        db.execute(sql_update, {**updates, "cid": cust_id})
+        db.commit()
+        return {"Status": "Success", "cust_id": cust_id, "updated": updates}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/managers/{manager_id}")
+def update_manager(manager_id: int, manager: schemas.ManagerUpdate, db: Session = Depends(get_db)):
+    sql_check = text("SELECT manager_id FROM managers WHERE manager_id = :mid")
+    if not db.execute(sql_check, {"mid": manager_id}).fetchone():
+        raise HTTPException(status_code=404, detail="Manager not found")
+
+    updates = manager.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+    sql_update = text(f"UPDATE managers SET {set_clause} WHERE manager_id = :mid")
+
+    try:
+        db.execute(sql_update, {**updates, "mid": manager_id})
+        db.commit()
+        return {"Status": "Success", "manager_id": manager_id, "updated": updates}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/stations", response_model=list[schemas.StationResponse])
 def get_all_stations(db: Session = Depends(get_db)):
     query = text("""

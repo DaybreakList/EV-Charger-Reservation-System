@@ -71,6 +71,20 @@ class ManagerProfile(BaseModel):
     class Config:
         from_attributes = True
 
+# -- Update Schemas -- #
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+class CustomerUpdate(BaseModel):
+    phone: Optional[str] = None
+    car_model: Optional[str] = None
+
+class ManagerUpdate(BaseModel):
+    phone: Optional[str] = None
+    tax_id: Optional[str] = None
+
 # -- Station Schemas -- #
 class StationResponse(BaseModel):
     station_id: int
