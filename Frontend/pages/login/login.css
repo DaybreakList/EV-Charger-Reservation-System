@@ -6,75 +6,41 @@
    reveal animation and spinner all live in assets/global.css.
    ============================================================= */
 
-/* ---------- Page shell (two-column on desktop) ---------- */
+/* ---------- Page shell (centered single column) ---------- */
 .page {
   min-height: 100dvh;
-  display: grid;
-  grid-template-columns: 1fr;
-  padding: 16px;
-  gap: 16px;
-}
-@media (min-width: 960px) {
-  .page {
-    grid-template-columns: 1.05fr 1fr;
-    padding: 20px;
-    gap: 20px;
-  }
-}
-
-/* Login taller stage + login-specific readout (kWh counter) */
-.visual-stage { min-height: 360px; }
-.readout .kwh {
-  font-family: 'Instrument Serif', serif;
-  font-size: clamp(54px, 6.4vw, 88px);
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-.readout .kwh em { font-style: italic; color: var(--accent-3); }
-
-.stats {
-  display: flex; gap: 28px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: rgba(234,243,236,0.65);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.stats .num {
-  display: block;
-  color: var(--dark-ink);
-  font-size: 18px;
-  font-family: 'Inter Tight';
-  letter-spacing: -0.01em;
-  text-transform: none;
-  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
 }
 
 /* ---------- Form panel ---------- */
 .form-wrap {
-  display: grid;
-  place-items: center;
-  padding: 8px 4px;
+  width: 100%;
+  max-width: 460px;
 }
 .form-card {
   width: 100%;
-  max-width: 440px;
-  padding: 8px 4px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 40px 44px 36px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
 }
-@media (min-width: 960px) {
-  .form-card { padding: 40px 8px; max-width: 420px; }
+@media (max-width: 520px) {
+  .form-card { padding: 32px 24px 28px; border-radius: 12px; }
 }
 
-/* mobile-only inline brand above the form */
+/* brand always visible */
 .form-brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-weight: 500;
   font-size: 15px;
+  margin-bottom: 4px;
 }
-@media (min-width: 960px) { .form-brand { display: none; } }
 
 /* login title sits closer to the top on this page */
 .form-card .eyebrow { margin-top: 28px; }

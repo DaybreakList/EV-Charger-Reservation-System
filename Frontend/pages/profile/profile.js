@@ -49,30 +49,50 @@ function MenuItem({ icon, iconVariant = '', title, sub, danger, chevron = true, 
 
 /* ---------- App ---------- */
 function App() {
-  const [stats, setStats] = useState({ total: 0, completed: 0, kwh: 0 });
+  const [stats, setStats]     = useState({ total: 0, completed: 0, kwh: 0 });
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Read session
-  const custId   = auth.custId();
-  const role     = auth.role() || 'customer';
-  // Derive display name from email or fall back
-  const rawEmail = localStorage.getItem('ev_email') || '';
-  const name     = localStorage.getItem('ev_name')  || rawEmail.split('@')[0] || 'John Doe';
-  const email    = rawEmail || 'user@example.com';
-  const initials = getInitials(name);
+  const custId    = auth.custId();
+  const managerId = auth.managerId();
+  const role      = auth.role() || 'customer';
+
+  // Derived display values (live from backend when available)
+  const name     = profile
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User'
+    : 'Loading…';
+  const email    = profile?.email || '';
+  const phone    = profile?.phone || '';
+  const carModel = profile?.car_model || '';
+  const taxId    = profile?.tax_id || '';
+  const initials = profile ? getInitials(name) : '··';
 
   useEffect(() => {
-    if (!custId) { setLoading(false); return; }
-    api.getBookingHistory(custId)
-      .then(data => {
-        const list = (data || []);
-        const completed = list.filter(b => (b.booking_status || '').toLowerCase() === 'completed');
-        const kwh = completed.reduce((sum, b) => sum + Number(b.total_kwh || 0), 0);
-        setStats({ total: list.length, completed: completed.length, kwh: Math.round(kwh) });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [custId]);
+    const profilePromise = role === 'manager' && managerId
+      ? api.getManagerProfile(managerId)
+      : custId
+        ? api.getCustomerProfile(custId)
+        : Promise.resolve(null);
+
+    const statsPromise = custId
+      ? api.getBookingHistory(custId).then(data => {
+          const list = (data || []);
+          const completed = list.filter(b => (b.booking_status || '').toLowerCase() === 'completed');
+          const kwh = completed.reduce((sum, b) => sum + Number(b.total_kwh || 0), 0);
+          return { total: list.length, completed: completed.length, kwh: Math.round(kwh) };
+        })
+      : Promise.resolve({ total: 0, completed: 0, kwh: 0 });
+
+    Promise.all([
+      profilePromise.catch(() => null),
+      statsPromise.catch(() => ({ total: 0, completed: 0, kwh: 0 })),
+    ]).then(([p, s]) => {
+      setProfile(p);
+      setStats(s);
+      setLoading(false);
+    });
+  }, [custId, managerId, role]);
 
   function handleLogout() {
     if (!window.confirm('Log out of EV Charger?')) return;
@@ -128,68 +148,29 @@ function App() {
           </div>
         </div>
 
-        {/* Menu sections */}
+        {/* User info + logout */}
         <div className="sections reveal">
 
-          {/* Account */}
-          <span className="section-label">Account</span>
-          <nav className="menu-list">
-            <MenuItem
-              icon={<IcoUser width="18" height="18" />}
-              iconVariant="accent"
-              title="Personal info"
-              sub="Name, email, phone number"
-            />
-            <MenuItem
-              icon={<IcoShield width="18" height="18" />}
-              title="Security"
-              sub="Password, 2-factor auth"
-            />
-            <MenuItem
-              icon={<IcoCard width="18" height="18" />}
-              title="Payment methods"
-              sub="Cards, Prompt Pay, wallets"
-            />
-          </nav>
+          <div className="info-card">
+            <span className="info-card-label">User Information</span>
 
-          {/* Preferences */}
-          <span className="section-label">Preferences</span>
-          <nav className="menu-list">
-            <MenuItem
-              icon={<IcoBell width="18" height="18" />}
-              iconVariant="warning"
-              title="Notifications"
-              sub="Booking reminders, promotions"
-            />
-            <MenuItem
-              icon={<IcoBolt width="18" height="18" />}
-              iconVariant="accent"
-              title="Charging preferences"
-              sub="Default connector, max power"
-            />
-          </nav>
+            <div className="info-row">
+              <span className="info-key">Phone</span>
+              <span className="info-val">{loading ? '—' : (phone || '—')}</span>
+            </div>
 
-          {/* Support */}
-          <span className="section-label">Support</span>
-          <nav className="menu-list">
-            <MenuItem
-              icon={<IcoHelp width="18" height="18" />}
-              title="Help & FAQ"
-              sub="Guides, contact support"
-            />
-          </nav>
+            <div className="info-row">
+              <span className="info-key">{role === 'manager' ? 'Tax ID' : 'Vehicle Model'}</span>
+              <span className="info-val">
+                {loading ? '—' : (role === 'manager' ? (taxId || '—') : (carModel || '—'))}
+              </span>
+            </div>
+          </div>
 
-          {/* Danger zone */}
-          <nav className="menu-list logout-row">
-            <MenuItem
-              icon={<IcoLogout width="18" height="18" />}
-              iconVariant="danger"
-              title="Log out"
-              danger={true}
-              chevron={false}
-              onClick={handleLogout}
-            />
-          </nav>
+          <button className="logout-btn-full" onClick={handleLogout}>
+            <IcoLogout width="16" height="16" />
+            Log out
+          </button>
 
           <p className="version-tag">EV Charger · v1.0.0</p>
         </div>

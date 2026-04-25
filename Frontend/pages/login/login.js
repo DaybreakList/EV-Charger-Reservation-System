@@ -204,36 +204,6 @@ function LoginForm() {
 function App() {
   return (
     <div className="page">
-      <aside className="visual" aria-hidden="false">
-        <div className="visual-inner">
-          <a className="brand" href="#">
-            <BrandMark />
-            <span>EV Charger Station</span>
-          </a>
-
-          <div className="visual-stage">
-            <ChargeViz><KwhReadout /></ChargeViz>
-          </div>
-
-          <div className="visual-foot">
-            <div className="tagline">
-              Clean energy, <em>clean code.</em><br/>
-              One login for every station.
-            </div>
-            <div className="stats">
-              <div>
-                <span className="num">2,847</span>
-                Stations online
-              </div>
-              <div>
-                <span className="num">184.2k</span>
-                kWh today
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
       <main className="form-wrap">
         <div className="form-card">
           <div className="form-brand">

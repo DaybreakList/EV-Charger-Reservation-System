@@ -430,30 +430,6 @@ function App() {
 
   return (
     <div className="page">
-      <aside className="visual">
-        <div className="visual-inner">
-          <a className="brand" href="#">
-            <BrandMark />
-            <span>EV Charger Station</span>
-          </a>
-
-          <div className="visual-stage">
-            <ChargeViz><PersonaReadout persona={persona} /></ChargeViz>
-          </div>
-
-          <div className="visual-foot">
-            <div>
-              <div className="tagline">
-                {persona === 'customer'
-                  ? <>Every charge, <em>accounted for.</em></>
-                  : <>Every station, <em>in one place.</em></>}
-              </div>
-              <SideBenefits persona={persona} />
-            </div>
-          </div>
-        </div>
-      </aside>
-
       <main className="form-wrap">
         <div className="form-card">
           <div className="form-brand">

@@ -249,16 +249,7 @@
         </div>
 
         <div className="top-actions">
-          <button
-            className="icon-btn"
-            aria-label={hasNotifications ? 'Notifications · unread' : 'Notifications'}
-            title="Notifications"
-            onClick={onNotifications}
-          >
-            <Ico.Bell width="18" height="18"/>
-            {hasNotifications && <span className="dot-notice" aria-hidden="true"/>}
-          </button>
-
+          
           <div className="user-chip" role="button" aria-label="Account menu">
             <div className="user-avatar">{user.initials}</div>
             <div className="user-info">

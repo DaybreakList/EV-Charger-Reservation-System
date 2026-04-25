@@ -321,12 +321,7 @@ function App() {
             <BrandMark />
             <span>EV Charger</span>
           </a>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button className="btn btn-ghost btn-sm" aria-label="Search" style={{ padding: '8px 10px' }}>
-              <Ico.Search width="16" height="16"/>
-            </button>
-            <div className="avatar" role="button" aria-label="Account">JD</div>
-          </div>
+          <div className="avatar" role="button" aria-label="Account">JD</div>
         </header>
 
         <section className="hero reveal">

@@ -219,6 +219,48 @@ def register_manager(user_data: schemas.UserCreate, mgr_data: schemas.ManagerCre
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/customers/{cust_id}", response_model=schemas.CustomerProfile)
+def get_customer_profile(cust_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT
+            c.cust_id,
+            c.user_id,
+            u.first_name,
+            u.last_name,
+            u.email,
+            u.role,
+            c.phone,
+            c.car_model
+        FROM customers c
+        JOIN users u ON c.user_id = u.user_id
+        WHERE c.cust_id = :cust_id
+    """)
+    row = db.execute(query, {"cust_id": cust_id}).mappings().fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return row
+
+@app.get("/managers/{manager_id}", response_model=schemas.ManagerProfile)
+def get_manager_profile(manager_id: int, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT
+            m.manager_id,
+            m.user_id,
+            u.first_name,
+            u.last_name,
+            u.email,
+            u.role,
+            m.phone,
+            m.tax_id
+        FROM managers m
+        JOIN users u ON m.user_id = u.user_id
+        WHERE m.manager_id = :manager_id
+    """)
+    row = db.execute(query, {"manager_id": manager_id}).mappings().fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Manager not found")
+    return row
+
 @app.get("/stations", response_model=list[schemas.StationResponse])
 def get_all_stations(db: Session = Depends(get_db)):
     query = text("""

@@ -4,90 +4,41 @@
    all live in assets/global.css.
    ============================================================= */
 
-/* ---------- Page shell (two-column on desktop) ---------- */
+/* ---------- Page shell (centered single column) ---------- */
 .page {
   min-height: 100dvh;
-  display: grid;
-  grid-template-columns: 1fr;
-  padding: 16px;
-  gap: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
 }
-@media (min-width: 960px) {
-  .page {
-    grid-template-columns: 1fr 1.1fr;
-    padding: 20px;
-    gap: 20px;
-  }
-}
-
-/* Registration pins the dark panel while the form scrolls */
-@media (min-width: 960px) {
-  .visual {
-    position: sticky;
-    top: 20px;
-    height: calc(100dvh - 40px);
-  }
-}
-
-/* Registration uses a slightly shorter stage + persona readout */
-.visual-stage { min-height: 300px; }
-.readout .persona {
-  font-family: 'Instrument Serif', serif;
-  font-size: clamp(40px, 5vw, 64px);
-  line-height: 1;
-  letter-spacing: -0.02em;
-  transition: opacity .3s ease;
-}
-.readout .persona em { font-style: italic; color: var(--accent-3); }
-
-/* Tighter tagline under the ring */
-.visual .tagline {
-  font-size: clamp(26px, 2.6vw, 36px);
-  line-height: 1.08;
-}
-
-/* Per-persona benefit list inside the dark panel */
-.benefits {
-  margin-top: 20px;
-  display: grid;
-  gap: 12px;
-  max-width: 28ch;
-}
-.benefit {
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 12px;
-  align-items: start;
-  font-size: 13.5px;
-  color: rgba(234,243,236,0.8);
-  line-height: 1.45;
-}
-.benefit svg { margin-top: 2px; color: var(--accent-3); }
 
 /* ---------- Form panel ---------- */
 .form-wrap {
-  display: grid;
-  place-items: start center;
-  padding: 8px 4px 40px;
+  width: 100%;
+  max-width: 520px;
 }
 .form-card {
   width: 100%;
-  max-width: 520px;
-  padding: 8px 4px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 40px 44px 36px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
 }
-@media (min-width: 960px) {
-  .form-card { padding: 40px 16px; }
+@media (max-width: 520px) {
+  .form-card { padding: 32px 24px 28px; border-radius: 12px; }
 }
 
-/* Mobile-only inline brand above the form */
+/* brand always visible */
 .form-brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-weight: 500;
   font-size: 15px;
+  margin-bottom: 4px;
 }
-@media (min-width: 960px) { .form-brand { display: none; } }
 
 /* Registration spacing for the eyebrow/title */
 .form-card .eyebrow { margin-top: 28px; }

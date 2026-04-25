@@ -41,11 +41,35 @@ class Customer(BaseModel):
     class Config:
         from_attributes = True
 
+class CustomerProfile(BaseModel):
+    cust_id: int
+    user_id: int
+    first_name: str
+    last_name: str
+    email: EmailStr
+    role: str
+    phone: str
+    car_model: str
+    class Config:
+        from_attributes = True
+
 # -- Manager Schemas -- #
 class ManagerCreate(BaseModel):
     phone: str
     tax_id: str
     invite_code: str
+
+class ManagerProfile(BaseModel):
+    manager_id: int
+    user_id: int
+    first_name: str
+    last_name: str
+    email: EmailStr
+    role: str
+    phone: str
+    tax_id: str
+    class Config:
+        from_attributes = True
 
 # -- Station Schemas -- #
 class StationResponse(BaseModel):

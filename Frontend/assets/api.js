@@ -83,6 +83,10 @@
       });
     },
 
+    /* Profiles */
+    getCustomerProfile(custId)       { return request(`/customers/${custId}`); },
+    getManagerProfile(managerId)     { return request(`/managers/${managerId}`); },
+
     /* Stations */
     getAllStations()                 { return request('/stations'); },
     getStationsByManager(managerId)  { return request(`/managers/${managerId}/stations`); },
