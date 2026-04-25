@@ -702,6 +702,7 @@ def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)
     slots = []
     slot_start = datetime.combine(date, time(0, 0), tzinfo=TZ_BANGKOK)
     day_end = datetime.combine(date, time(0, 0), tzinfo=TZ_BANGKOK) + timedelta(days=1)
+    now = datetime.now(tz=TZ_BANGKOK)
 
     while slot_start + timedelta(minutes=SLOT_DURATION_MINUTES) <= day_end:
         slot_end = slot_start + timedelta(minutes=SLOT_DURATION_MINUTES)
@@ -712,12 +713,15 @@ def get_available_slots(charger_id:int, date:date, db: Session = Depends(get_db)
             for b in booked
         )
 
+        # slot ที่เริ่มไปแล้ว (อดีต) ไม่ให้จอง
+        is_past = slot_start < now
+
         slots.append({
             "start_time": slot_start.isoformat(),
             "end_time": slot_end.isoformat(),
-            "available": not is_taken
+            "available": (not is_taken) and (not is_past)
         })
 
         slot_start = slot_end #Slot ถัดไป
-    
+
     return slots

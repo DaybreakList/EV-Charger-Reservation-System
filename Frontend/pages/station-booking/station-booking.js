@@ -35,7 +35,7 @@ function buildDates() {
   today.setHours(0, 0, 0, 0);
   for (let i = 0; i < 7; i++) {
     const d = new Date(today.getTime() + i * 86400000);
-    const iso = d.toISOString().slice(0, 10);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     out.push({
       iso,
       date: d,
