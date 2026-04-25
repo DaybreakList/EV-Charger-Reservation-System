@@ -6,7 +6,15 @@
 
 const { useState, useMemo, useEffect, useRef } = React;
 const { BrandMark, Ico, BottomNav } = window.EVShared;
-const { api, loadGoogleMaps } = window.EVApi;
+const { api, auth, loadGoogleMaps } = window.EVApi;
+
+/* ---------- Helpers ---------- */
+function getInitials(name) {
+  if (!name) return '··';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 /* =============================================================
    FALLBACK MOCK — only used if backend is offline so the page
@@ -255,7 +263,26 @@ function App() {
   const [locating, setLocating]   = useState(false);
   const [userLoc, setUserLoc]     = useState(null);
   const [activeStation, setActiveStation] = useState(null);
+  const [profile, setProfile] = useState(null);
   const sortWrapRef = useRef(null);
+
+  // Load current user's profile so the topbar avatar shows real initials
+  useEffect(() => {
+    const role      = auth.role() || 'customer';
+    const custId    = auth.custId();
+    const managerId = auth.managerId();
+    const promise   = role === 'manager' && managerId
+      ? api.getManagerProfile(managerId)
+      : custId
+        ? api.getCustomerProfile(custId)
+        : Promise.resolve(null);
+    promise.then(p => setProfile(p)).catch(() => setProfile(null));
+  }, []);
+
+  const accountName = profile
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+    : '';
+  const accountInitials = profile ? getInitials(accountName) : '··';
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -357,7 +384,7 @@ function App() {
             <BrandMark />
             <span>EV Charger</span>
           </a>
-          <div className="avatar" role="button" aria-label="Account">JD</div>
+          <a className="avatar" href="../profile/index.html" aria-label="Account">{accountInitials}</a>
         </header>
 
         <section className="hero reveal">
