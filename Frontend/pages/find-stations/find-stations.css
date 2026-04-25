@@ -307,6 +307,40 @@
   color: var(--muted);
 }
 .sort-btn:hover .sort-lbl { color: var(--accent); }
+.sort-btn .chev { transition: transform .18s var(--ease); color: var(--muted); transform: rotate(90deg); }
+.sort-btn .chev.open { transform: rotate(-90deg); }
+
+.sort-wrap { position: relative; }
+.sort-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+  padding: 6px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sort-item {
+  appearance: none; font: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.sort-item:hover { background: var(--field); color: var(--accent); }
+.sort-item.on { color: var(--accent); font-weight: 600; }
 
 /* ---------- Station card ---------- */
 .station {

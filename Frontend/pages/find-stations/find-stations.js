@@ -47,6 +47,7 @@ function GoogleMap({ stations, userLoc, activeId, onPinClick, onMapReady }) {
   const mapRef       = useRef(null);
   const markersRef   = useRef({});
   const meMarkerRef  = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Init map
   useEffect(() => {
@@ -64,6 +65,7 @@ function GoogleMap({ stations, userLoc, activeId, onPinClick, onMapReady }) {
             { featureType: 'poi', stylers: [{ visibility: 'off' }] },
           ],
         });
+        setMapReady(true);
         if (onMapReady) onMapReady(mapRef.current);
       })
       .catch((err) => console.error('Map load failed:', err));
@@ -73,7 +75,7 @@ function GoogleMap({ stations, userLoc, activeId, onPinClick, onMapReady }) {
   // User location marker
   useEffect(() => {
     const google = window.google;
-    if (!mapRef.current || !google) return;
+    if (!mapReady || !mapRef.current || !google) return;
     if (meMarkerRef.current) { meMarkerRef.current.setMap(null); meMarkerRef.current = null; }
     if (userLoc) {
       meMarkerRef.current = new google.maps.Marker({
@@ -92,7 +94,7 @@ function GoogleMap({ stations, userLoc, activeId, onPinClick, onMapReady }) {
       });
       mapRef.current.panTo({ lat: userLoc.lat, lng: userLoc.lng });
     }
-  }, [userLoc]);
+  }, [userLoc, mapReady]);
 
   // Station pins
   useEffect(() => {
@@ -132,7 +134,7 @@ function GoogleMap({ stations, userLoc, activeId, onPinClick, onMapReady }) {
     if (hasAny && !userLoc) {
       try { mapRef.current.fitBounds(bounds, 60); } catch (_) {}
     }
-  }, [stations, activeId]);
+  }, [stations, activeId, mapReady]);
 
   // Pan to active pin
   useEffect(() => {
@@ -249,9 +251,20 @@ function App() {
   const [error, setError]         = useState('');
   const [usingMock, setUsingMock] = useState(false);
   const [sort, setSort]           = useState('distance');
+  const [sortOpen, setSortOpen]   = useState(false);
   const [locating, setLocating]   = useState(false);
   const [userLoc, setUserLoc]     = useState(null);
   const [activeStation, setActiveStation] = useState(null);
+  const sortWrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    function onDocClick(e) {
+      if (sortWrapRef.current && !sortWrapRef.current.contains(e.target)) setSortOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [sortOpen]);
 
   async function loadStations(loc) {
     setLoading(true);
@@ -272,7 +285,26 @@ function App() {
     }
   }
 
-  useEffect(() => { loadStations(null); }, []);
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      loadStations(null);
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLoc(loc);
+        setLocating(false);
+        loadStations(loc);
+      },
+      () => {
+        setLocating(false);
+        loadStations(null);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }, []);
 
   function useMyLocation() {
     if (userLoc) { setUserLoc(null); loadStations(null); return; }
@@ -292,7 +324,7 @@ function App() {
         setLocating(false);
         setError(err.message || 'Could not get your location.');
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }
 
@@ -303,8 +335,12 @@ function App() {
     } else {
       const parseMins = (t) => {
         if (!t) return Infinity;
+        let total = 0;
+        const h = t.match(/(\d+)\s*h/);
         const m = t.match(/(\d+)\s*min/);
-        return m ? Number(m[1]) : Infinity;
+        if (h) total += Number(h[1]) * 60;
+        if (m) total += Number(m[1]);
+        return total || Infinity;
       };
       arr.sort((a, b) => parseMins(a.duration_text) - parseMins(b.duration_text));
     }
@@ -375,14 +411,41 @@ function App() {
               {loading ? 'Loading' : <>Results <span className="count">{sorted.length}</span></>}
             </span>
             {!loading && sorted.length > 0 && (
-              <button
-                className="sort-btn"
-                onClick={() => setSort(s => s === 'distance' ? 'time' : 'distance')}
-              >
-                <Ico.Sort width="12" height="12"/>
-                <span className="sort-lbl">Sort</span>
-                <span>{sort === 'distance' ? 'Distance' : 'Drive time'}</span>
-              </button>
+              <div className="sort-wrap" ref={sortWrapRef}>
+                <button
+                  className="sort-btn"
+                  onClick={() => setSortOpen(o => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={sortOpen}
+                >
+                  <Ico.Sort width="12" height="12"/>
+                  <span className="sort-lbl">Sort</span>
+                  <span>{sort === 'distance' ? 'Distance' : 'Drive time'}</span>
+                  <Ico.Chevron className={`chev ${sortOpen ? 'open' : ''}`} width="14" height="14"/>
+                </button>
+                {sortOpen && (
+                  <div className="sort-menu" role="menu">
+                    <button
+                      role="menuitemradio"
+                      aria-checked={sort === 'distance'}
+                      className={`sort-item ${sort === 'distance' ? 'on' : ''}`}
+                      onClick={() => { setSort('distance'); setSortOpen(false); }}
+                    >
+                      <span>Distance</span>
+                      {sort === 'distance' && <Ico.Check width="14" height="14"/>}
+                    </button>
+                    <button
+                      role="menuitemradio"
+                      aria-checked={sort === 'time'}
+                      className={`sort-item ${sort === 'time' ? 'on' : ''}`}
+                      onClick={() => { setSort('time'); setSortOpen(false); }}
+                    >
+                      <span>Drive time</span>
+                      {sort === 'time' && <Ico.Check width="14" height="14"/>}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
