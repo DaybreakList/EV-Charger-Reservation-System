@@ -472,15 +472,18 @@ def get_chargers_by_station(station_id: int, db: Session = Depends(get_db)):
 
 @app.post("/bookings/", response_model=schemas.BookingResponse)
 def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
-    # -- Check charger availability and status = Available -- #
+    # -- Check charger + parent station status -- #
     sql_check = text("""
-        SELECT charger_id, status, rate_per_kwh
-        FROM chargers
-        WHERE charger_id = :charger_id
+        SELECT c.charger_id, c.status, c.rate_per_kwh, s.status AS station_status
+        FROM chargers c
+        JOIN stations s ON c.station_id = s.station_id
+        WHERE c.charger_id = :charger_id
     """)
     charger = db.execute(sql_check, {"charger_id": booking.charger_id}).fetchone()
     if not charger:
         raise HTTPException(status_code=404, detail="Charger not found")
+    if charger[3] == "Inactive":
+        raise HTTPException(status_code=400, detail="Station is currently closed — bookings unavailable")
     if charger[1] == "Out of Service":
         raise HTTPException(status_code=400, detail="Charger is out of service")
     

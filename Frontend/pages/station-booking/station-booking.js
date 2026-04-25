@@ -49,9 +49,9 @@ function buildDates() {
 }
 
 /* ============ Charger Card ============ */
-function ChargerCard({ c, selected, onSelect }) {
+function ChargerCard({ c, selected, onSelect, stationInactive }) {
   const status = (c.status || '').toLowerCase();
-  const unavailable = status === 'out of service' || status === 'offline';
+  const unavailable = status === 'out of service' || status === 'offline' || stationInactive;
   const standard = c.charging_standard || c.standard || 'AC';
 
   return (
@@ -72,7 +72,7 @@ function ChargerCard({ c, selected, onSelect }) {
           <div className="ch-type-row">
             <span className={standard === 'DC' ? 'badge-dc' : 'badge-ac'}>{standard}</span>
             <span className={unavailable ? 'badge-status-off' : 'badge-status-ok'}>
-              {unavailable ? 'Out of service' : 'Available'}
+              {stationInactive ? 'Station closed' : unavailable ? 'Out of service' : 'Available'}
             </span>
             {standard === 'DC' && <span className="badge">Fast charge</span>}
           </div>
@@ -260,8 +260,9 @@ function App() {
 
   const chargerObj = chargers.find(c => c.charger_id === selectedCharger);
   const dateObj    = dates.find(d => d.iso === selectedDate);
+  const stationInactive = (station?.status || '').toLowerCase() === 'inactive';
 
-  const canConfirm = !!(selectedCharger && selectedSlot && !submitting);
+  const canConfirm = !!(selectedCharger && selectedSlot && !submitting && !stationInactive);
 
   async function handleConfirm() {
     if (!canConfirm) return;
@@ -341,6 +342,31 @@ function App() {
             </span>
             <span className="badge">{chargers.length} charger{chargers.length === 1 ? '' : 's'}</span>
           </div>
+
+          {stationInactive && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 16,
+                padding: '12px 16px',
+                background: 'rgba(180, 68, 42, 0.08)',
+                border: '1px solid rgba(180, 68, 42, 0.3)',
+                borderRadius: 12,
+                color: 'var(--danger)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                fontSize: 14,
+                lineHeight: 1.45,
+              }}
+            >
+              <Ico.Alert width="18" height="18"/>
+              <span>
+                <strong>This station is currently closed.</strong> You can browse chargers and rates,
+                but new bookings are unavailable until it reopens.
+              </span>
+            </div>
+          )}
         </section>
 
         <div className="main-grid">
@@ -366,6 +392,7 @@ function App() {
                   c={c}
                   selected={selectedCharger === c.charger_id}
                   onSelect={setSelectedCharger}
+                  stationInactive={stationInactive}
                 />
               ))}
             </div>
