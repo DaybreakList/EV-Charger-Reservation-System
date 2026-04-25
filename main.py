@@ -353,6 +353,15 @@ def get_nearby_stations(lat: float, lng: float, db: Session = Depends(get_db)):
     result.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else float("inf"))
     return result
 
+@app.get("/charger-types/", response_model=list[schemas.ChargerTypeResponse])
+def get_charger_types(db: Session = Depends(get_db)):
+    sql = text("""
+        SELECT type_id, type_name, max_power_kw, charging_standard
+        FROM charger_types
+        ORDER BY type_id
+    """)
+    return db.execute(sql).mappings().all()
+
 @app.post("/charger-types/")
 def add_charger_type(charger_type: schemas.ChargerTypeCreate, db: Session = Depends(get_db)):
     sql = text("""
@@ -424,6 +433,26 @@ def add_charger_to_station(station_id: int, charger: schemas.ChargerCreate, db: 
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.get("/stations/{station_id}/today-summary")
+def get_station_today_summary(station_id: int, db: Session = Depends(get_db)):
+    sql = text("""
+        SELECT
+            COUNT(DISTINCT b.booking_id) AS bookings,
+            COALESCE(SUM(p.amount) FILTER (WHERE p.payment_status = 'Paid'), 0) AS revenue
+        FROM bookings b
+        JOIN chargers c ON b.charger_id = c.charger_id
+        LEFT JOIN payments p ON b.booking_id = p.booking_id
+        WHERE c.station_id = :station_id
+          AND DATE(b.start_time AT TIME ZONE 'Asia/Bangkok')
+              = (NOW() AT TIME ZONE 'Asia/Bangkok')::date
+          AND b.booking_status <> 'Cancelled'
+    """)
+    row = db.execute(sql, {"station_id": station_id}).mappings().fetchone()
+    return {
+        "bookings": int(row["bookings"] or 0),
+        "revenue":  float(row["revenue"] or 0),
+    }
+
 @app.get("/station/{station_id}/chargers/", response_model=list[schemas.ChargerResponse])
 def get_chargers_by_station(station_id: int, db: Session = Depends(get_db)):
     query = text("""

@@ -16,14 +16,17 @@ function getStationId() {
   return id ? Number(id) : null;
 }
 
-/* No GET /charger-types/ exists, so the type picker is hardcoded.
-   Each entry's `type_id` MUST match a row created via POST /charger-types/.
-   TODO (backend): expose GET /charger-types/. */
-const CHARGER_TYPES = [
-  { type_id: 1, key: 'type2_ac',   name: 'Type 2',  connector: 'AC', maxKW: 22,  desc: 'Up to 22 kW · single or 3-phase' },
-  { type_id: 2, key: 'ccs_dc',     name: 'CCS2',    connector: 'DC', maxKW: 150, desc: 'Up to 150 kW · fast charging' },
-  { type_id: 3, key: 'chademo_dc', name: 'CHAdeMO', connector: 'DC', maxKW: 50,  desc: 'Up to 50 kW · legacy Japanese spec' },
-];
+function normaliseType(t) {
+  const kw = Number(t.max_power_kw || 0);
+  const std = (t.charging_standard || 'AC').toUpperCase();
+  return {
+    type_id:   t.type_id,
+    name:      t.type_name,
+    connector: std,
+    maxKW:     kw,
+    desc:      `Up to ${kw} kW · ${std === 'DC' ? 'fast charging' : 'AC charging'}`,
+  };
+}
 
 function normaliseCharger(c) {
   const status = (c.status || '').toLowerCase();
@@ -90,9 +93,9 @@ function RateCell({ value, onChange, chargerId }) {
 }
 
 /* ============ Add Charger Modal ============ */
-function AddModal({ stationLabel, onClose, onAdd }) {
+function AddModal({ stationLabel, chargerTypes, onClose, onAdd }) {
   const [leaving, setLeaving] = useState(false);
-  const [typeId, setTypeId]   = useState(CHARGER_TYPES[0].type_id);
+  const [typeId, setTypeId]   = useState(chargerTypes[0]?.type_id ?? null);
   const [rate, setRate]       = useState('7.5');
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg]   = useState('');
@@ -109,7 +112,7 @@ function AddModal({ stationLabel, onClose, onAdd }) {
   }, []);
 
   const rateNum = parseFloat(rate);
-  const valid = !isNaN(rateNum) && rateNum > 0;
+  const valid = !isNaN(rateNum) && rateNum > 0 && typeId != null;
 
   async function submit() {
     if (!valid) return;
@@ -145,7 +148,12 @@ function AddModal({ stationLabel, onClose, onAdd }) {
           <div className="field">
             <label>Charger type</label>
             <div className="type-picker" role="radiogroup">
-              {CHARGER_TYPES.map(t => (
+              {chargerTypes.length === 0 && (
+                <div className="hint" style={{ padding: 8 }}>
+                  No charger types defined yet. Ask an admin to add some via POST /charger-types/.
+                </div>
+              )}
+              {chargerTypes.map(t => (
                 <button
                   key={t.type_id}
                   type="button"
@@ -368,6 +376,7 @@ function App() {
 
   const [station, setStation]   = useState(null);
   const [chargers, setChargers] = useState([]);
+  const [chargerTypes, setChargerTypes] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
   const [filter, setFilter]     = useState('all');
@@ -385,13 +394,15 @@ function App() {
     }
     setLoading(true);
     try {
-      const [allStations, ch] = await Promise.all([
+      const [allStations, ch, types] = await Promise.all([
         api.getAllStations().catch(() => null),
         api.getChargersByStation(stationId).catch(() => []),
+        api.getChargerTypes().catch(() => []),
       ]);
       const found = allStations && allStations.find(s => s.station_id === stationId);
       setStation(found || { station_id: stationId, name: `Station ${stationId}`, address: '' });
       setChargers((ch || []).map(normaliseCharger));
+      setChargerTypes((types || []).map(normaliseType));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -588,7 +599,7 @@ function App() {
         </button>
       </div>
 
-      {showAdd && <AddModal stationLabel={stationLabel} onClose={() => setShowAdd(false)} onAdd={addCharger}/>}
+      {showAdd && <AddModal stationLabel={stationLabel} chargerTypes={chargerTypes} onClose={() => setShowAdd(false)} onAdd={addCharger}/>}
       {toDelete && <DeleteModal charger={toDelete} onClose={() => setToDelete(null)} onConfirm={doDelete}/>}
 
       <Toast message={toast} onClose={() => setToast(null)} />

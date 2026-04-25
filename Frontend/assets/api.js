@@ -97,8 +97,10 @@
     updateStation(stationId, managerId, patch) {
       return request(`/stations/${stationId}`, { method: 'PATCH', query: { manager_id: managerId }, body: patch });
     },
+    getStationTodaySummary(stationId) { return request(`/stations/${stationId}/today-summary`); },
 
     /* Chargers */
+    getChargerTypes()                { return request('/charger-types/'); },
     getChargersByStation(stationId)  { return request(`/station/${stationId}/chargers/`); },
     addCharger(stationId, charger) {
       return request(`/stations/${stationId}/chargers/`, { method: 'POST', body: charger });

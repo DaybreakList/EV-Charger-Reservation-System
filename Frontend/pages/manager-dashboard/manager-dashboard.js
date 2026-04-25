@@ -12,22 +12,19 @@ const { api, auth } = window.EVApi;
 
 const MANAGER = { name: 'Network Manager', role: 'Manager', initials: 'NM' };
 
-/* Deterministic pseudo-random metrics so each station shows
-   stable numbers. TODO (backend): replace with /manager/summary. */
-function mockMetricsFor(id) {
-  let s = (Number(id) * 9301 + 49297) % 233280;
-  const r = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
-  return {
-    chargers:     { total: 0, available: 0, busy: 0, offline: 0 },
-    todayBookings: Math.round(r() * 24),
-    todayRevenue:  Math.round(r() * 7000),
-    utilization:   Math.round(r() * 90),
-  };
+function countChargers(list) {
+  const total = list.length;
+  let available = 0, offline = 0;
+  for (const c of list) {
+    const st = (c.status || '').toLowerCase();
+    if (st === 'available') available++;
+    else if (st === 'out of service') offline++;
+  }
+  return { total, available, busy: 0, offline };
 }
 
-function normaliseStation(s) {
+function normaliseStation(s, chargerList, summary) {
   const status = (s.status || 'Active').toLowerCase();
-  const m = mockMetricsFor(s.station_id);
   return {
     id:        s.station_id,
     name:      s.name,
@@ -35,10 +32,10 @@ function normaliseStation(s) {
     latitude:  s.latitude  != null ? Number(s.latitude)  : null,
     longitude: s.longitude != null ? Number(s.longitude) : null,
     status:    status === 'inactive' ? 'inactive' : 'active',
-    chargers:  m.chargers,
-    todayBookings: m.todayBookings,
-    todayRevenue:  m.todayRevenue,
-    utilization:   m.utilization,
+    chargers:  countChargers(chargerList || []),
+    todayBookings: summary?.bookings ?? 0,
+    todayRevenue:  Math.round(summary?.revenue ?? 0),
+    utilization:   0,
   };
 }
 
@@ -336,7 +333,12 @@ function App() {
     setError('');
     try {
       const data = await api.getStationsByManager(managerId);
-      setStations((data || []).map(normaliseStation));
+      const list = data || [];
+      const [chargerLists, summaries] = await Promise.all([
+        Promise.all(list.map(s => api.getChargersByStation(s.station_id).catch(() => []))),
+        Promise.all(list.map(s => api.getStationTodaySummary(s.station_id).catch(() => ({ bookings: 0, revenue: 0 })))),
+      ]);
+      setStations(list.map((s, i) => normaliseStation(s, chargerLists[i], summaries[i])));
     } catch (err) {
       setError(err.message || 'Could not load stations.');
       setStations([]);
