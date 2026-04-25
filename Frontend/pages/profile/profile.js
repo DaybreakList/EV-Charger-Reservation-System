@@ -5,7 +5,7 @@
    ============================================================= */
 
 const { useState, useEffect } = React;
-const { BrandMark, Ico, BottomNav, Modal, Toast } = window.EVShared;
+const { BrandMark, Ico, BottomNav, ProfileEditModal, Toast } = window.EVShared;
 const { api, auth } = window.EVApi;
 
 /* ---------- Helpers ---------- */
@@ -19,140 +19,6 @@ function getInitials(name) {
 /* ---------- Icons (page-local) ---------- */
 function IcoLogout(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M15 5H5v14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 8l4 4-4 4M18 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function IcoChevron(p)  { return <svg {...p} viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
-
-/* ---------- Edit Profile Modal ---------- */
-function EditProfileModal({ profile, role, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    first_name: profile.first_name || '',
-    last_name:  profile.last_name  || '',
-    email:      profile.email      || '',
-    phone:      profile.phone      || '',
-    car_model:  profile.car_model  || '',
-    tax_id:     profile.tax_id     || '',
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [errMsg, setErrMsg] = useState('');
-
-  const valid =
-    form.first_name.trim().length > 0 &&
-    form.last_name.trim().length  > 0 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
-    form.phone.trim().length > 0 &&
-    (role === 'manager' ? form.tax_id.trim().length > 0 : form.car_model.trim().length > 0);
-
-  async function save() {
-    if (!valid || submitting) return;
-    setSubmitting(true);
-    setErrMsg('');
-    try {
-      // 1) update users table (name + email)
-      await api.updateUser(profile.user_id, {
-        first_name: form.first_name.trim(),
-        last_name:  form.last_name.trim(),
-        email:      form.email.trim(),
-      });
-      // 2) update role-specific fields
-      if (role === 'manager') {
-        await api.updateManager(auth.managerId(), {
-          phone:  form.phone.trim(),
-          tax_id: form.tax_id.trim(),
-        });
-      } else {
-        await api.updateCustomer(auth.custId(), {
-          phone:     form.phone.trim(),
-          car_model: form.car_model.trim(),
-        });
-      }
-      onSaved('Profile updated');
-    } catch (err) {
-      setErrMsg(err.message || 'Update failed');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Modal open={true} onClose={onClose} labelledBy="edit-profile-title">
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <header className="modal-head">
-          <div>
-            <div className="mh-eyebrow">Account</div>
-            <h2 id="edit-profile-title">Edit your <em>profile.</em></h2>
-          </div>
-          <button className="modal-close" aria-label="Close" onClick={onClose}>
-            <Ico.Close width="16" height="16"/>
-          </button>
-        </header>
-
-        <div className="modal-body">
-          <div className="row-2">
-            <div className="field">
-              <label htmlFor="ep-first">First name</label>
-              <div className="input-wrap">
-                <input id="ep-first" value={form.first_name}
-                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}/>
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="ep-last">Last name</label>
-              <div className="input-wrap">
-                <input id="ep-last" value={form.last_name}
-                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}/>
-              </div>
-            </div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="ep-email">Email</label>
-            <div className="input-wrap">
-              <input id="ep-email" type="email" value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}/>
-            </div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="ep-phone">Phone</label>
-            <div className="input-wrap">
-              <input id="ep-phone" type="tel" value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}/>
-            </div>
-          </div>
-
-          {role === 'manager' ? (
-            <div className="field">
-              <label htmlFor="ep-tax">Tax ID</label>
-              <div className="input-wrap">
-                <input id="ep-tax" value={form.tax_id}
-                  onChange={(e) => setForm({ ...form, tax_id: e.target.value })}/>
-              </div>
-            </div>
-          ) : (
-            <div className="field">
-              <label htmlFor="ep-car">Car model</label>
-              <div className="input-wrap">
-                <input id="ep-car" placeholder="e.g. Tesla Model 3" value={form.car_model}
-                  onChange={(e) => setForm({ ...form, car_model: e.target.value })}/>
-              </div>
-            </div>
-          )}
-
-          {errMsg && (
-            <div style={{ color: 'var(--danger)', fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}>
-              <Ico.Alert width="13" height="13"/> {errMsg}
-            </div>
-          )}
-        </div>
-
-        <footer className="modal-foot">
-          <button className="btn btn-secondary btn-lg" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button className="btn btn-primary btn-lg" disabled={!valid || submitting} onClick={save}>
-            {submitting ? 'Saving…' : 'Save changes'}
-          </button>
-        </footer>
-      </div>
-    </Modal>
-  );
-}
 
 /* ---------- App ---------- */
 function App() {
@@ -312,7 +178,7 @@ function App() {
       }} />
 
       {editOpen && profile && (
-        <EditProfileModal
+        <ProfileEditModal
           profile={profile}
           role={role}
           onClose={() => setEditOpen(false)}

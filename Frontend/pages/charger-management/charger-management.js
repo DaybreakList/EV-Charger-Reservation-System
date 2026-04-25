@@ -5,10 +5,14 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo, useRef } = React;
-const { Ico, ManagerHeader, Toast } = window.EVShared;
+const { Ico, ManagerHeader, ProfileEditModal, Toast } = window.EVShared;
 const { api, auth } = window.EVApi;
 
-const MANAGER = { name: 'Network Manager', role: 'Manager', initials: 'NM' };
+function getInitials(first, last) {
+  const a = (first || '').trim()[0] || '';
+  const b = (last  || '').trim()[0] || '';
+  return (a + b).toUpperCase() || '··';
+}
 
 function getStationId() {
   const p = new URLSearchParams(window.location.search);
@@ -383,6 +387,21 @@ function App() {
   const [showAdd, setShowAdd]   = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [toast, setToast]       = useState(null);
+  const [managerProfile, setManagerProfile] = useState(null);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!managerId) return;
+    api.getManagerProfile(managerId)
+      .then(setManagerProfile)
+      .catch(() => {});
+  }, [managerId]);
+
+  const headerUser = managerProfile ? {
+    name:     `${managerProfile.first_name || ''} ${managerProfile.last_name || ''}`.trim() || 'Manager',
+    role:     'Manager',
+    initials: getInitials(managerProfile.first_name, managerProfile.last_name),
+  } : null;
 
   function flash(msg) { setToast(msg); }
 
@@ -477,8 +496,9 @@ function App() {
     <>
       <ManagerHeader
         tag="Manager"
-        user={MANAGER}
-        hasNotifications={false}
+        brandHref="../manager-dashboard/index.html"
+        user={headerUser}
+        onEditProfile={managerProfile ? () => setEditProfileOpen(true) : undefined}
       />
 
       <div className="page">
@@ -601,6 +621,19 @@ function App() {
 
       {showAdd && <AddModal stationLabel={stationLabel} chargerTypes={chargerTypes} onClose={() => setShowAdd(false)} onAdd={addCharger}/>}
       {toDelete && <DeleteModal charger={toDelete} onClose={() => setToDelete(null)} onConfirm={doDelete}/>}
+
+      {editProfileOpen && managerProfile && (
+        <ProfileEditModal
+          profile={managerProfile}
+          role="manager"
+          onClose={() => setEditProfileOpen(false)}
+          onSaved={(msg) => {
+            setEditProfileOpen(false);
+            flash(msg);
+            api.getManagerProfile(managerId).then(setManagerProfile).catch(() => {});
+          }}
+        />
+      )}
 
       <Toast message={toast} onClose={() => setToast(null)} />
     </>

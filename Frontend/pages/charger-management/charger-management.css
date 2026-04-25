@@ -587,6 +587,11 @@
   display: grid;
   place-items: center;
 }
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
 /* ---------- Charger-type picker (pretty radio group) ---------- */
 .type-picker { display: grid; gap: 8px; }

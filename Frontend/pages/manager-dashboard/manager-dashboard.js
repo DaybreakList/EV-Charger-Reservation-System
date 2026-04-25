@@ -7,10 +7,14 @@
    ============================================================= */
 
 const { useState, useEffect, useMemo, useRef } = React;
-const { Ico, ManagerHeader, Toast } = window.EVShared;
+const { Ico, ManagerHeader, ProfileEditModal, Toast } = window.EVShared;
 const { api, auth } = window.EVApi;
 
-const MANAGER = { name: 'Network Manager', role: 'Manager', initials: 'NM' };
+function getInitials(first, last) {
+  const a = (first || '').trim()[0] || '';
+  const b = (last  || '').trim()[0] || '';
+  return (a + b).toUpperCase() || '··';
+}
 
 function countChargers(list) {
   const total = list.length;
@@ -321,6 +325,21 @@ function App() {
   const [query, setQuery]       = useState('');
   const [modal, setModal]       = useState(null);
   const [toast, setToast]       = useState(null);
+  const [managerProfile, setManagerProfile] = useState(null);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!managerId) return;
+    api.getManagerProfile(managerId)
+      .then(setManagerProfile)
+      .catch(() => {});
+  }, [managerId]);
+
+  const headerUser = managerProfile ? {
+    name:     `${managerProfile.first_name || ''} ${managerProfile.last_name || ''}`.trim() || 'Manager',
+    role:     'Manager',
+    initials: getInitials(managerProfile.first_name, managerProfile.last_name),
+  } : null;
 
   async function reload() {
     if (!managerId) {
@@ -434,8 +453,9 @@ function App() {
       <ManagerHeader
         tag="Manager"
         crumb="Dashboard · Overview"
-        user={MANAGER}
+        user={headerUser}
         onLogout={logout}
+        onEditProfile={managerProfile ? () => setEditProfileOpen(true) : undefined}
       />
 
       <div className="page">
@@ -534,6 +554,19 @@ function App() {
           initial={modal.mode === 'edit' ? modal.station : null}
           onClose={() => setModal(null)}
           onSave={saveStation}
+        />
+      )}
+
+      {editProfileOpen && managerProfile && (
+        <ProfileEditModal
+          profile={managerProfile}
+          role="manager"
+          onClose={() => setEditProfileOpen(false)}
+          onSaved={(msg) => {
+            setEditProfileOpen(false);
+            flash(msg);
+            api.getManagerProfile(managerId).then(setManagerProfile).catch(() => {});
+          }}
         />
       )}
 

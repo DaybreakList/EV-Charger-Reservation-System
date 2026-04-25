@@ -236,11 +236,12 @@
        onNotifications — click handler for the bell
        hasNotifications — if true, shows the pulsing red dot
   */
-  function ManagerHeader({ tag = 'Manager', crumb, user, onLogout, onNotifications, hasNotifications = true }) {
+  function ManagerHeader({ tag = 'Manager', crumb, user, onLogout, onEditProfile, brandHref = '#' }) {
+    const safeUser = user || { name: 'Loading…', role: tag, initials: '··' };
     return (
       <header className="topbar">
         <div className="brand-row">
-          <a className="brand" href="#">
+          <a className="brand" href={brandHref}>
             <BrandMark />
             <span className="brand-name">EV Charger</span>
           </a>
@@ -249,14 +250,25 @@
         </div>
 
         <div className="top-actions">
-          
           <div className="user-chip" role="button" aria-label="Account menu">
-            <div className="user-avatar">{user.initials}</div>
+            <div className="user-avatar">{safeUser.initials}</div>
             <div className="user-info">
-              <span className="user-name">{user.name}</span>
-              <span className="user-role">{user.role}</span>
+              <span className="user-name">{safeUser.name}</span>
+              <span className="user-role">{safeUser.role}</span>
             </div>
           </div>
+
+          {onEditProfile && (
+            <button
+              className="icon-btn"
+              data-action="edit-profile"
+              onClick={onEditProfile}
+              aria-label="Edit profile"
+              title="Edit profile"
+            >
+              <Ico.Edit width="16" height="16"/>
+            </button>
+          )}
 
           {onLogout && (
             <button className="logout-btn" data-action="logout" onClick={onLogout}>
@@ -266,6 +278,147 @@
           )}
         </div>
       </header>
+    );
+  }
+
+  /* ---------- ProfileEditModal ----------
+     Shared edit-profile modal used by both customer profile and
+     manager pages. Caller provides:
+       profile      — { user_id, first_name, last_name, email, phone, car_model?, tax_id? }
+       role         — 'customer' | 'manager'
+       onClose, onSaved(message) callbacks.
+     Pulls api.updateUser + api.updateCustomer/updateManager from
+     window.EVApi so it has no extra deps from the caller.
+  */
+  function ProfileEditModal({ profile, role, onClose, onSaved }) {
+    const { api, auth } = window.EVApi;
+    const [form, setForm] = React.useState({
+      first_name: profile.first_name || '',
+      last_name:  profile.last_name  || '',
+      email:      profile.email      || '',
+      phone:      profile.phone      || '',
+      car_model:  profile.car_model  || '',
+      tax_id:     profile.tax_id     || '',
+    });
+    const [submitting, setSubmitting] = React.useState(false);
+    const [errMsg, setErrMsg] = React.useState('');
+
+    const valid =
+      form.first_name.trim().length > 0 &&
+      form.last_name.trim().length  > 0 &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
+      form.phone.trim().length > 0 &&
+      (role === 'manager' ? form.tax_id.trim().length > 0 : form.car_model.trim().length > 0);
+
+    async function save() {
+      if (!valid || submitting) return;
+      setSubmitting(true);
+      setErrMsg('');
+      try {
+        await api.updateUser(profile.user_id, {
+          first_name: form.first_name.trim(),
+          last_name:  form.last_name.trim(),
+          email:      form.email.trim(),
+        });
+        if (role === 'manager') {
+          await api.updateManager(auth.managerId(), {
+            phone:  form.phone.trim(),
+            tax_id: form.tax_id.trim(),
+          });
+        } else {
+          await api.updateCustomer(auth.custId(), {
+            phone:     form.phone.trim(),
+            car_model: form.car_model.trim(),
+          });
+        }
+        onSaved && onSaved('Profile updated');
+      } catch (err) {
+        setErrMsg(err.message || 'Update failed');
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
+    return (
+      <Modal open={true} onClose={onClose} labelledBy="ev-edit-profile-title">
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <header className="modal-head">
+            <div>
+              <div className="mh-eyebrow">Account</div>
+              <h2 id="ev-edit-profile-title">Edit your <em>profile.</em></h2>
+            </div>
+            <button className="modal-close" aria-label="Close" onClick={onClose}>
+              <Ico.Close width="16" height="16"/>
+            </button>
+          </header>
+
+          <div className="modal-body">
+            <div className="row-2">
+              <div className="field">
+                <label htmlFor="ep-first">First name</label>
+                <div className="input-wrap">
+                  <input id="ep-first" value={form.first_name}
+                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}/>
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="ep-last">Last name</label>
+                <div className="input-wrap">
+                  <input id="ep-last" value={form.last_name}
+                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}/>
+                </div>
+              </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="ep-email">Email</label>
+              <div className="input-wrap">
+                <input id="ep-email" type="email" value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}/>
+              </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="ep-phone">Phone</label>
+              <div className="input-wrap">
+                <input id="ep-phone" type="tel" value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}/>
+              </div>
+            </div>
+
+            {role === 'manager' ? (
+              <div className="field">
+                <label htmlFor="ep-tax">Tax ID</label>
+                <div className="input-wrap">
+                  <input id="ep-tax" value={form.tax_id}
+                    onChange={(e) => setForm({ ...form, tax_id: e.target.value })}/>
+                </div>
+              </div>
+            ) : (
+              <div className="field">
+                <label htmlFor="ep-car">Car model</label>
+                <div className="input-wrap">
+                  <input id="ep-car" placeholder="e.g. Tesla Model 3" value={form.car_model}
+                    onChange={(e) => setForm({ ...form, car_model: e.target.value })}/>
+                </div>
+              </div>
+            )}
+
+            {errMsg && (
+              <div style={{ color: 'var(--danger)', fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}>
+                <Ico.Alert width="13" height="13"/> {errMsg}
+              </div>
+            )}
+          </div>
+
+          <footer className="modal-foot">
+            <button className="btn btn-secondary btn-lg" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button className="btn btn-primary btn-lg" disabled={!valid || submitting} onClick={save}>
+              {submitting ? 'Saving…' : 'Save changes'}
+            </button>
+          </footer>
+        </div>
+      </Modal>
     );
   }
 
@@ -294,5 +447,5 @@
   }
 
   /* ---------- Expose ---------- */
-  window.EVShared = { BrandMark, Ico, BottomNav, Modal, ChargeViz, ManagerHeader, Toast };
+  window.EVShared = { BrandMark, Ico, BottomNav, Modal, ChargeViz, ManagerHeader, ProfileEditModal, Toast };
 })();
