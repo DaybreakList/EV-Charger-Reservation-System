@@ -453,9 +453,6 @@ function App() {
             )}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary btn-lg" onClick={() => flash('Exporting CSV… (mock)')}>
-              Export
-            </button>
             <button className="btn btn-primary btn-lg" onClick={() => setModal({ mode: 'new' })}>
               <Ico.Plus width="16" height="16"/>
               Add New Station
