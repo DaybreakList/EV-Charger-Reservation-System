@@ -25,7 +25,7 @@
 |       |   {PTT Station Chiang Mai University (สถานีชาร์จ มช.), ต.สุเทพ อ.เมืองเชียงใหม่ จ.เชียงใหม่, 18.804000, 98.953000, Waraporn}
 |       |   {MG Super Charge เซ็นทรัลพลาซา เวสต์เกต, 69/1 หมู่ 6 ต.บางรักพัฒนา อ.บางบัวทอง จ.นนทบุรี, 13.912500, 100.446000, Waraporn}
 |
-|___# Chargers # [[type_name, max_power_kw, charger_standard], rate_per_kw, station_name]
+|___# Chargers # [[type_name, max_power_kw, charging_standard], rate_per_kw, station_name]
         |   {[Type 2 (AC), 7.4, AC], 7.5 THB/kWh, PTT Station ธรรมศาสตร์รังสิต}
         |   {[CCS Combo 2, 50, DC], 7.5 THB/kWh, PTT Station ธรรมศาสตร์รังสิต}
         |   {[CHAdeMO, 50, DC], 7.5 THB/kWh, PTT Station ธรรมศาสตร์รังสิต}
