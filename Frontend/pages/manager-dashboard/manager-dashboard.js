@@ -1,9 +1,8 @@
 /* =============================================================
    MANAGER DASHBOARD — page script
    Loads the signed-in manager's stations via
-   GET /managers/{manager_id}/stations. Per-station booking and
-   revenue figures don't have a backend endpoint yet, so they're
-   filled with deterministic mock numbers (TODO: real summary).
+   GET /managers/{manager_id}/stations. Per-station booking count
+   and revenue are pulled from GET /stations/{id}/today-summary.
    ============================================================= */
 
 const { useState, useEffect, useMemo, useRef } = React;
@@ -24,7 +23,7 @@ function countChargers(list) {
     if (st === 'available') available++;
     else if (st === 'out of service') offline++;
   }
-  return { total, available, busy: 0, offline };
+  return { total, available, offline };
 }
 
 function normaliseStation(s, chargerList, summary) {
@@ -104,9 +103,8 @@ function Metric({ lbl, value, unit, delta, deltaDir = 'up', icon, accent, spark,
 function StationCard({ s, onToggleStatus, onEdit, onManageChargers }) {
   const { chargers } = s;
   const total = chargers.total || 1;
-  const okPct   = (chargers.available / total) * 100;
-  const busyPct = (chargers.busy      / total) * 100;
-  const offPct  = (chargers.offline   / total) * 100;
+  const okPct  = (chargers.available / total) * 100;
+  const offPct = (chargers.offline   / total) * 100;
   const statusLabel = s.status === 'active' ? 'Active' : 'Inactive';
 
   return (
@@ -151,12 +149,10 @@ function StationCard({ s, onToggleStatus, onEdit, onManageChargers }) {
         </div>
         <div className="cb-legend" style={{ marginTop: 10 }}>
           <div className="charger-bar" style={{ width: '100%', marginBottom: 6 }}>
-            {okPct   > 0 && <span className="cb-ok"   style={{ width: `${okPct}%` }}/>}
-            {busyPct > 0 && <span className="cb-busy" style={{ width: `${busyPct}%` }}/>}
-            {offPct  > 0 && <span className="cb-off"  style={{ width: `${offPct}%` }}/>}
+            {okPct  > 0 && <span className="cb-ok"  style={{ width: `${okPct}%` }}/>}
+            {offPct > 0 && <span className="cb-off" style={{ width: `${offPct}%` }}/>}
           </div>
           <span><span className="dot" style={{ background: 'var(--accent-2)' }}/>{chargers.available} avail</span>
-          <span><span className="dot" style={{ background: 'var(--warning)'  }}/>{chargers.busy} in use</span>
           <span><span className="dot" style={{ background: 'var(--danger)'   }}/>{chargers.offline} offline</span>
         </div>
       </div>
@@ -208,14 +204,6 @@ function StationModal({ initial, onClose, onSave }) {
     form.address.trim().length > 3 &&
     form.latitude  !== '' && !isNaN(parseFloat(form.latitude)) &&
     form.longitude !== '' && !isNaN(parseFloat(form.longitude));
-
-  function pickOnMap() {
-    setForm(f => ({
-      ...f,
-      latitude:  (13.72  + (Math.random() - 0.5) * 0.1).toFixed(4),
-      longitude: (100.56 + (Math.random() - 0.5) * 0.1).toFixed(4),
-    }));
-  }
 
   async function save() {
     if (!valid) return;
@@ -286,15 +274,6 @@ function StationModal({ initial, onClose, onSave }) {
               </div>
             </div>
           </div>
-
-          <button type="button" className="pick-on-map" onClick={pickOnMap}>
-            <span className="pm-ico" aria-hidden="true"><Ico.Crosshair width="16" height="16"/></span>
-            <span className="pm-txt">
-              <span className="pm-t1">Pick on map</span>
-              <span className="pm-t2">Drop a random pin near Bangkok (placeholder)</span>
-            </span>
-            <Ico.ArrowRight width="16" height="16" style={{ color: 'var(--accent)' }}/>
-          </button>
 
           {errMsg && (
             <div className="err-msg" aria-live="polite" style={{ marginTop: 8 }}>
