@@ -184,7 +184,6 @@ function RegistrationForm({ persona }) {
             setSuccess(null);
             setForm({ firstName:'', lastName:'', email:'', password:'', phone:'', carModel:'', taxId:'', inviteCode:'' });
             setTouched({});
-            setAgree(false);
           }}
         >
           Create another account
