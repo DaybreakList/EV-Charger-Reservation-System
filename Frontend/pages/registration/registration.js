@@ -82,7 +82,6 @@ function RegistrationForm({ persona }) {
   });
   const [touched, setTouched]   = useState({});
   const [showPw, setShowPw]     = useState(false);
-  const [agree, setAgree]       = useState(false);
   const [submitting, setSubmit] = useState(false);
   const [success, setSuccess]   = useState(null);
   const [serverErr, setServerErr] = useState('');
@@ -117,7 +116,7 @@ function RegistrationForm({ persona }) {
 
   const strength = pwStrength(form.password);
   const hasAnyError = Object.keys(errors).length > 0;
-  const canSubmit = !hasAnyError && agree && !submitting;
+  const canSubmit = !hasAnyError && !submitting;
 
   async function submit(e) {
     e.preventDefault();
@@ -126,7 +125,7 @@ function RegistrationForm({ persona }) {
       ? ['firstName','lastName','email','password','phone','taxId','inviteCode']
       : ['firstName','lastName','email','password','phone','carModel'];
     setTouched(Object.fromEntries(allKeys.map(k => [k, true])));
-    if (hasAnyError || !agree) return;
+    if (hasAnyError) return;
     setSubmit(true);
     try {
       const user_data = {
@@ -176,7 +175,7 @@ function RegistrationForm({ persona }) {
           )}
         </div>
         <h2>Welcome, <em>{success.firstName}.</em></h2>
-        <p>We sent a verification link to <strong>{success.email}</strong>. Open it to activate your account.</p>
+        <p>Your account has been created with <strong>{success.email}</strong>. You can now sign in.</p>
         <button
           type="button"
           className="btn-submit"
@@ -289,10 +288,7 @@ function RegistrationForm({ persona }) {
               <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <span>
-              Manager accounts require an invite code from the EV Charger Station network team. Don't have one?{' '}
-              <a href="#" onClick={e => e.preventDefault()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
-                Request access
-              </a>.
+              Manager accounts require an invite code from the EV Charger Station network team. Contract Admin for the code!
             </span>
           </div>
         </>
@@ -301,18 +297,9 @@ function RegistrationForm({ persona }) {
           onChange={set('carModel')} onBlur={mark('carModel')}
           error={errors.carModel} touched={touched.carModel}
           placeholder="e.g. Tesla Model 3, Hyundai Ioniq 5"
-          help="We'll use this to recommend the fastest-compatible connectors near you."
+          help="Please insert your Car model"
           autoComplete="off" success />
       )}
-
-      <label className="terms">
-        <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />
-        <span>
-          I agree to the{' '}
-          <a href="#" onClick={e => e.preventDefault()}>Terms of Service</a> and{' '}
-          <a href="#" onClick={e => e.preventDefault()}>Privacy Policy</a>.
-        </span>
-      </label>
 
       {serverErr && (
         <div className="err-msg" aria-live="polite" style={{ marginBottom: 8 }}>
@@ -456,7 +443,7 @@ function App() {
           </div>
 
           <div className="form-foot">
-            <span>v2.4 · api.evcharger.io</span>
+            <span>v6.7 · ev charger</span>
             <span>© 2026</span>
           </div>
         </div>
