@@ -17,16 +17,16 @@ BEGIN;
 -- 1. USERS  (6 customers + 4 managers)
 -- -------------------------------------------------------------
 INSERT INTO users (first_name, last_name, email, password, role, phone) VALUES
-  ('Napat',    'Chaiyaporn',  'napat.cha@testdb.com',           'abc123',   'customer', '0812345678'),  -- user_id 1
-  ('Kanya',    'Srisuk',      'kanya.s@samplemail.com',         'pass12',   'customer', '0898765432'),  -- user_id 2
-  ('Arthit',   'Phromma',     'arthit.p@tester.io',             'evtest1',  'customer', '0823456789'),  -- user_id 3
-  ('Mali',     'Wongsa',      'mali.w@devmail.com',             'qwerty1',  'customer', '0832109876'),  -- user_id 4
-  ('Somchai',  'Rattanakorn', 'somchai.r@example.org',          '123abc',   'customer', '0845551212'),  -- user_id 5
-  ('Ploy',     'Niran',       'ploy.n@testdb.net',              'letmein1', 'customer', '0903334444'),  -- user_id 6
-  ('Anan',     'Kittipong',   'anan.kittipong@testdb.com',      'mgr1234',  'manager',  '0912345678'),  -- user_id 7
-  ('Siriporn', 'Chanthara',   'siriporn.chan@samplemail.com',   'admin123', 'manager',  '0897654321'),  -- user_id 8  (changed: was 0898765432, duplicate of user_id 2)
-  ('Kittisak', 'Phumiphat',   'kittisak.phu@testdb.net',        'mgrtest7', 'manager',  '0865551212'),  -- user_id 9
-  ('Waraporn', 'Suthisak',    'waraporn.suth@testdb.com',       'mgr0001',  'manager',  '0921112223');  -- user_id 10
+  ('Napat',    'Chumcome',    'napat.chum@testdb.com',          '$2b$12$QfdJW7NsjM6koFomNr4fSeqWDNrJVuBs6nzCwQTvZUfCwenzgOHlO',   'customer',  '0812345678'),  -- user_id 1
+  ('Kanya',    'Srisuk',      'kanya.s@samplemail.com',         '$2b$12$.wAbetAmOou1d/5VEU1JLur3mjFBnGVFcaJmgPF5B2Sy9S.fI3/C6',   'customer',  '0898765432'),  -- user_id 2
+  ('Arthit',   'Phromma',     'arthit.p@tester.io',             '$2b$12$tMOmY7L9aMVgUH1jiPxsrOoi7rp4Cztkv/mt8aRzjOaK0o9HWshYK',   'customer',  '0823456789'),  -- user_id 3
+  ('Mali',     'Wongsa',      'mali.w@devmail.com',             '$2b$12$jf/SI9N79K332voIIDhjFeAaOHLOUkWJx0Rm9FR/vXFRWF05LjuGC',   'customer',  '0832109876'),  -- user_id 4
+  ('Somchai',  'Rattanakorn', 'somchai.r@example.org',          '$2b$12$1v3sJ9DbRU9LspJ/Vta7qeyQQacmU8GP6iS3S5wnpCpP6l.vXheyW',   'customer',  '0845551212'),  -- user_id 5
+  ('Ploy',     'Niran',       'ploy.n@testdb.net',              '$2b$12$r6CyG3tTrBmKj8OGWH5OYOfhHV4RFeM769eFvKGuL9j.fQWTKgVhS',   'customer',  '0903334444'),  -- user_id 6
+  ('Anan',     'Kittipong',   'anan.kittipong@testdb.com',      '$2b$12$HVGMx11ppvctXYTSG76XRuQNPshz603tVNeuidhhnrKkW9cqUtddO',   'manager',   '0912345678'),  -- user_id 7
+  ('Siriporn', 'Chanthara',   'siriporn.chan@samplemail.com',   '$2b$12$2YvhaVGqK4kkmUaMA9tCs.x3tEeWRiQzUTYCo1aV25otzL6INMfMa',   'manager',   '0897654321'),  -- user_id 8  (changed: was 0898765432, duplicate of user_id 2)
+  ('Kittisak', 'Phumiphat',   'kittisak.phu@testdb.net',        '$2b$12$c4n6itXxxSvFVIa9BS9wmOLvi/fxiZwqPO2DoWQORggOP0F2C.rK.',   'manager',   '0865551212'),  -- user_id 9
+  ('Waraporn', 'Suthisak',    'waraporn.suth@testdb.com',       '$2b$12$u.QLNDvB.wPbO2UWeLeNZeIwaztBf3pCDOmtAIlDQyGZRFM95pmgm',   'manager',   '0921112223');  -- user_id 10
 
 -- -------------------------------------------------------------
 -- 2a. CUSTOMERS
