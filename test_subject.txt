@@ -2,45 +2,45 @@
 ## Users ##
 |
 |___# Customers # [first_name last_name, email, phone_number, password, car_model]
-|       |   {Napat Chaiyaporn, napat.cha@testdb.com, 0812345678, abc123, Tesla Model 3}
-|       |   {Kanya Srisuk, kanya.s@samplemail.com, 0898765432, pass12, Nissan Leaf}
-|       |   {Arthit Phromma, arthit.p@tester.io, 0823456789, evtest1, Hyundai Kona Electric}
-|       |   {Mali Wongsa, mali.w@devmail.com, 0832109876, qwerty1, MG ZS EV}
-|       |   {Somchai Rattanakorn, somchai.r@example.org, 0845551212, 123abc, BMW i3}
-|       |   {Ploy Niran, ploy.n@testdb.net, 0903334444, letmein1, BYD Atto 3}
+|       |   {Napat Chumcome,        napat.chum@testdb.com,    0812345678,   abc123,     Tesla Model 3}
+|       |   {Kanya Srisuk,          kanya.s@samplemail.com,   0898765432,   pass12,     Nissan Leaf}
+|       |   {Arthit Phromma,        arthit.p@tester.io,       0823456789,   evtest1,    Hyundai Kona Electric}
+|       |   {Mali Wongsa,           mali.w@devmail.com,       0832109876,   qwerty1,    MG ZS EV}
+|       |   {Somchai Rattanakorn,   somchai.r@example.org,    0845551212,   123abc,     BMW i3}
+|       |   {Ploy Niran,            ploy.n@testdb.net,        0903334444,   letmein1,   BYD Atto 3}
 |
 |___# Managers # [first_name last_name, email, phone_number, password, tax_id]
-        |   {Anan Kittipong, anan.kittipong@testdb.com, 0912345678, mgr1234, 1234567890123}
-        |   {Siriporn Chanthara, siriporn.chan@samplemail.com, 0897654321, admin123, 3210987654321}
-        |   {Kittisak Phumiphat, kittisak.phu@testdb.net, 0865551212, mgrtest7, 5678012345679}
-        |   {Waraporn Suthisak, waraporn.suth@testdb.com, 0921112223, mgr0001, 7890123456784}
+        |   {Anan Kittipong,       anan.kittipong@testdb.com,      0912345678,   mgr1234,    1234567890123}
+        |   {Siriporn Chanthara,   siriporn.chan@samplemail.com,   0897654321,   admin123,   3210987654321}
+        |   {Kittisak Phumiphat,   kittisak.phu@testdb.net,        0865551212,   mgrtest7,   5678012345679}
+        |   {Waraporn Suthisak,    waraporn.suth@testdb.com,       0921112223,   mgr0001,    7890123456784}
 
 ## Stations & Chargers ##
 |
 |___# Stations # [station_name, address, latitude, longitude, manager_first_name]
-|       |   {PTT Station ธรรมศาสตร์รังสิต, ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี 12120, 14.0671453, 100.6062378, Anan}
-|       |   {EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต, ตำบลคลองหนึ่ง อำเภอคลองหลวง ปทุมธานี, 14.069200, 100.607000, Siriporn}
-|       |   {MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย, จุฬาลงกรณ์มหาวิทยาลัย เขตปทุมวัน กรุงเทพฯ, 13.736900, 100.530800, Kittisak}
-|       |   {EA Anywhere สถานีชาร์จ สยามสแควร์ / ใกล้จุฬาฯ, สยามสแควร์ เขตปทุมวัน กรุงเทพฯ, 13.746000, 100.534000, Kittisak}
-|       |   {PTT Station Chiang Mai University (สถานีชาร์จ มช.), ต.สุเทพ อ.เมืองเชียงใหม่ จ.เชียงใหม่, 18.804000, 98.953000, Waraporn}
-|       |   {MG Super Charge เซ็นทรัลพลาซา เวสต์เกต, 69/1 หมู่ 6 ต.บางรักพัฒนา อ.บางบัวทอง จ.นนทบุรี, 13.912500, 100.446000, Waraporn}
+|       |   {PTT Station ธรรมศาสตร์รังสิต, ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี 12120,                   14.0671453, 100.6062378, Anan}
+|       |   {EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต, ตำบลคลองหนึ่ง อำเภอคลองหลวง ปทุมธานี,             14.069200,  100.607000,  Siriporn}
+|       |   {MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย, จุฬาลงกรณ์มหาวิทยาลัย เขตปทุมวัน กรุงเทพฯ,           13.736900,  100.530800,  Kittisak}
+|       |   {EA Anywhere สถานีชาร์จ สยามสแควร์ / ใกล้จุฬาฯ, สยามสแควร์ เขตปทุมวัน กรุงเทพฯ,             13.746000,  100.534000,  Kittisak}
+|       |   {PTT Station Chiang Mai University (สถานีชาร์จ มช.), ต.สุเทพ อ.เมืองเชียงใหม่ จ.เชียงใหม่,  18.804000,  98.953000,   Waraporn}
+|       |   {MG Super Charge เซ็นทรัลพลาซา เวสต์เกต, 69/1 หมู่ 6 ต.บางรักพัฒนา อ.บางบัวทอง จ.นนทบุรี,   13.912500,  100.446000,  Waraporn}
 |
 |___# Chargers # [[type_name, max_power_kw, charging_standard], rate_per_kw, station_name]
-        |   {[Type 2 (AC), 7.4, AC], 7.5 THB/kWh, PTT Station ธรรมศาสตร์รังสิต}
-        |   {[CCS Combo 2, 50, DC], 7.5 THB/kWh, PTT Station ธรรมศาสตร์รังสิต}
-        |   {[CHAdeMO, 50, DC], 7.5 THB/kWh, PTT Station ธรรมศาสตร์รังสิต}
-        |   {[Type 2 (AC), 22, AC], 6.5 THB/kWh, EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต}
-        |   {[CCS Combo 2, 75, DC], 8.0 THB/kWh, EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต}
-        |   {[CHAdeMO, 50, DC], 8.0 THB/kWh, EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต}
-        |   {[Type 2 (AC), 22, AC], 5.5 THB/kWh, MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย}
-        |   {[CCS Combo 2, 50, DC], 7.0 THB/kWh, MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย}
-        |   {[CCS Combo 2, 150, DC], 12.0 THB/kWh, MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย}
-        |   {[Type 2 (AC), 22, AC], 6.0 THB/kWh, EA Anywhere สถานีชาร์จ สยามสแควร์}
-        |   {[CCS Combo 2, 100, DC], 10.0 THB/kWh, EA Anywhere สถานีชาร์จ สยามสแควร์}
-        |   {[CHAdeMO, 50, DC], 9.0 THB/kWh, EA Anywhere สถานีชาร์จ สยามสแควร์}
-        |   {[Type 2 (AC), 7.4, AC], 6.0 THB/kWh, PTT Station Chiang Mai University (สถานีชาร์จ มช.)}
-        |   {[CCS Combo 2, 75, DC], 9.0 THB/kWh, PTT Station Chiang Mai University (สถานีชาร์จ มช.)}
-        |   {[CHAdeMO, 50, DC], 9.0 THB/kWh, PTT Station Chiang Mai University (สถานีชาร์จ มช.)}
-        |   {[Type 2 (AC), 22, AC], 6.5 THB/kWh, MG Super Charge เซ็นทรัลพลาซา เวสต์เกต}
-        |   {[CCS Combo 2, 150, DC], 12.0 THB/kWh, MG Super Charge เซ็นทรัลพลาซา เวสต์เกต}
-        |   {[CCS Combo 2, 75, DC], 10.0 THB/kWh, MG Super Charge เซ็นทรัลพลาซา เวสต์เกต}
+        |   {[Type 2 (AC),   7.4, AC],   7.5 THB/kWh,   PTT Station ธรรมศาสตร์รังสิต}
+        |   {[CCS Combo 2,   50,  DC],   7.5 THB/kWh,   PTT Station ธรรมศาสตร์รังสิต}
+        |   {[CHAdeMO,       50,  DC],   7.5 THB/kWh,   PTT Station ธรรมศาสตร์รังสิต}
+        |   {[Type 2 (AC),   22,  AC],   6.5 THB/kWh,   EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต}
+        |   {[CCS Combo 2,   75,  DC],   8.0 THB/kWh,   EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต}
+        |   {[CHAdeMO,       50,  DC],   8.0 THB/kWh,   EA Anywhere สถานีชาร์จ ธรรมศาสตร์รังสิต}
+        |   {[Type 2 (AC),   22,  AC],   5.5 THB/kWh,   MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย}
+        |   {[CCS Combo 2,   50,  DC],   7.0 THB/kWh,   MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย}
+        |   {[CCS Combo 2,   150, DC],   12.0 THB/kWh,  MEA EV Charger จุฬาลงกรณ์มหาวิทยาลัย}
+        |   {[Type 2 (AC),   22,  AC],   6.0 THB/kWh,   EA Anywhere สถานีชาร์จ สยามสแควร์}
+        |   {[CCS Combo 2,   100, DC],   10.0 THB/kWh,  EA Anywhere สถานีชาร์จ สยามสแควร์}
+        |   {[CHAdeMO,       50,  DC],   9.0 THB/kWh,   EA Anywhere สถานีชาร์จ สยามสแควร์}
+        |   {[Type 2 (AC),   7.4, AC],   6.0 THB/kWh,   PTT Station Chiang Mai University (สถานีชาร์จ มช.)}
+        |   {[CCS Combo 2,   75,  DC],   9.0 THB/kWh,   PTT Station Chiang Mai University (สถานีชาร์จ มช.)}
+        |   {[CHAdeMO,       50,  DC],   9.0 THB/kWh,   PTT Station Chiang Mai University (สถานีชาร์จ มช.)}
+        |   {[Type 2 (AC),   22,  AC],   6.5 THB/kWh,   MG Super Charge เซ็นทรัลพลาซา เวสต์เกต}
+        |   {[CCS Combo 2,   150, DC],   12.0 THB/kWh,  MG Super Charge เซ็นทรัลพลาซา เวสต์เกต}
+        |   {[CCS Combo 2,   75,  DC],   10.0 THB/kWh,  MG Super Charge เซ็นทรัลพลาซา เวสต์เกต}
