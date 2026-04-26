@@ -60,7 +60,7 @@ CREATE TABLE bookings (
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     total_kwh DECIMAL(10, 2),
     booking_status VARCHAR(20) DEFAULT 'Pending' 
-        CHECK (booking_status IN ('Pending', 'Confirmed', 'Completed', 'Cancelled')),
+        CHECK (booking_status IN ('Pending', 'Completed', 'Cancelled')),
     rate_per_kwh_snapshot NUMERIC
 );
  
