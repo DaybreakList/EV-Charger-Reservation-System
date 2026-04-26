@@ -172,11 +172,6 @@ function LoginForm() {
         </div>
       </div>
 
-      <div className="row-between">
-        <span />
-        <a href="#" className="forgot" onClick={e => e.preventDefault()}>Forgot password?</a>
-      </div>
-
       <button type="submit" className="btn-signin" disabled={!canSubmit}>
         {submitting ? (
           <>
@@ -214,7 +209,7 @@ function App() {
           <LoginForm />
 
           <div className="form-foot">
-            <span>v2.4 · api.evcharger.io</span>
+            <span>v6.7 · ev charger</span>
             <span>© 2026</span>
           </div>
         </div>
