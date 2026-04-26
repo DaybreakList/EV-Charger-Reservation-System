@@ -13,15 +13,15 @@ CREATE TABLE users (
 CREATE TABLE customers (
     cust_id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-    phone VARCHAR(20),
+    phone VARCHAR(20) UNIQUE,
     car_model VARCHAR(100)
 );
  
 CREATE TABLE managers (
     manager_id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-    phone VARCHAR(20),
-    tax_id VARCHAR(50)
+    phone VARCHAR(20) UNIQUE,
+    tax_id VARCHAR(50) UNIQUE
 );
  
 CREATE TABLE stations (
@@ -49,7 +49,7 @@ CREATE TABLE chargers (
     station_id INTEGER REFERENCES stations(station_id) ON DELETE CASCADE,
     type_id INTEGER REFERENCES charger_types(type_id),
     rate_per_kwh DECIMAL(10, 2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'Available' -- Available, Out of Service
+    status VARCHAR(20) DEFAULT 'Available'
         CHECK (status IN ('Available', 'Out of Service')) 
 );
  
@@ -60,7 +60,7 @@ CREATE TABLE bookings (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     total_kwh DECIMAL(10, 2),
-    booking_status VARCHAR(20) DEFAULT 'Pending' -- Pending, Confirmed, Completed, Cancelled
+    booking_status VARCHAR(20) DEFAULT 'Pending' 
         CHECK (booking_status IN ('Pending', 'Confirmed', 'Completed', 'Cancelled')),
     rate_per_kwh_snapshot NUMERIC
 );
@@ -69,7 +69,7 @@ CREATE TABLE payments (
     booking_id INTEGER PRIMARY KEY REFERENCES bookings(booking_id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL,
     payment_method VARCHAR(50)
-        CHECK (payment_method IN ('Prompt Pay', 'Credit Card', 'Debit Card')), -- Prompt Pay, Credit Card, Debit Card
+        CHECK (payment_method IN ('Prompt Pay', 'Credit Card', 'Debit Card')),
     payment_status VARCHAR(20) DEFAULT 'Pending'
         CHECK (payment_status IN ('Pending', 'Paid')),
     payment_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
