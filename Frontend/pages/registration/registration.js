@@ -134,16 +134,15 @@ function RegistrationForm({ persona }) {
         email:      form.email.trim(),
         password:   form.password,
         role:       isManager ? 'manager' : 'customer',
+        phone:      form.phone.trim(),
       };
       if (isManager) {
         await api.registerManager(user_data, {
-          phone:       form.phone.trim(),
           tax_id:      form.taxId.trim(),
           invite_code: form.inviteCode.trim(),
         });
       } else {
         await api.registerCustomer(user_data, {
-          phone:     form.phone.trim(),
           car_model: form.carModel.trim(),
         });
       }

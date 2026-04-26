@@ -11,7 +11,7 @@
 |
 |___# Managers # [first_name last_name, email, phone_number, password, tax_id]
         |   {Anan Kittipong, anan.kittipong@testdb.com, 0912345678, mgr1234, 1234567890123}
-        |   {Siriporn Chanthara, siriporn.chan@samplemail.com, 0898765432, admin123, 3210987654321}
+        |   {Siriporn Chanthara, siriporn.chan@samplemail.com, 0897654321, admin123, 3210987654321}
         |   {Kittisak Phumiphat, kittisak.phu@testdb.net, 0865551212, mgrtest7, 5678012345679}
         |   {Waraporn Suthisak, waraporn.suth@testdb.com, 0921112223, mgr0001, 7890123456784}
 

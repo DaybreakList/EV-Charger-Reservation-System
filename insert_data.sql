@@ -16,37 +16,37 @@ BEGIN;
 -- -------------------------------------------------------------
 -- 1. USERS  (6 customers + 4 managers)
 -- -------------------------------------------------------------
-INSERT INTO users (first_name, last_name, email, password, role) VALUES
-  ('Napat',    'Chaiyaporn',  'napat.cha@testdb.com',           'abc123',   'customer'),  -- user_id 1
-  ('Kanya',    'Srisuk',      'kanya.s@samplemail.com',         'pass12',   'customer'),  -- user_id 2
-  ('Arthit',   'Phromma',     'arthit.p@tester.io',             'evtest1',  'customer'),  -- user_id 3
-  ('Mali',     'Wongsa',      'mali.w@devmail.com',             'qwerty1',  'customer'),  -- user_id 4
-  ('Somchai',  'Rattanakorn', 'somchai.r@example.org',          '123abc',   'customer'),  -- user_id 5
-  ('Ploy',     'Niran',       'ploy.n@testdb.net',              'letmein1', 'customer'),  -- user_id 6
-  ('Anan',     'Kittipong',   'anan.kittipong@testdb.com',      'mgr1234',  'manager'),   -- user_id 7
-  ('Siriporn', 'Chanthara',   'siriporn.chan@samplemail.com',   'admin123', 'manager'),   -- user_id 8
-  ('Kittisak', 'Phumiphat',   'kittisak.phu@testdb.net',        'mgrtest7', 'manager'),   -- user_id 9
-  ('Waraporn', 'Suthisak',    'waraporn.suth@testdb.com',       'mgr0001',  'manager');   -- user_id 10
+INSERT INTO users (first_name, last_name, email, password, role, phone) VALUES
+  ('Napat',    'Chaiyaporn',  'napat.cha@testdb.com',           'abc123',   'customer', '0812345678'),  -- user_id 1
+  ('Kanya',    'Srisuk',      'kanya.s@samplemail.com',         'pass12',   'customer', '0898765432'),  -- user_id 2
+  ('Arthit',   'Phromma',     'arthit.p@tester.io',             'evtest1',  'customer', '0823456789'),  -- user_id 3
+  ('Mali',     'Wongsa',      'mali.w@devmail.com',             'qwerty1',  'customer', '0832109876'),  -- user_id 4
+  ('Somchai',  'Rattanakorn', 'somchai.r@example.org',          '123abc',   'customer', '0845551212'),  -- user_id 5
+  ('Ploy',     'Niran',       'ploy.n@testdb.net',              'letmein1', 'customer', '0903334444'),  -- user_id 6
+  ('Anan',     'Kittipong',   'anan.kittipong@testdb.com',      'mgr1234',  'manager',  '0912345678'),  -- user_id 7
+  ('Siriporn', 'Chanthara',   'siriporn.chan@samplemail.com',   'admin123', 'manager',  '0897654321'),  -- user_id 8  (changed: was 0898765432, duplicate of user_id 2)
+  ('Kittisak', 'Phumiphat',   'kittisak.phu@testdb.net',        'mgrtest7', 'manager',  '0865551212'),  -- user_id 9
+  ('Waraporn', 'Suthisak',    'waraporn.suth@testdb.com',       'mgr0001',  'manager',  '0921112223');  -- user_id 10
 
 -- -------------------------------------------------------------
 -- 2a. CUSTOMERS
 -- -------------------------------------------------------------
-INSERT INTO customers (user_id, phone, car_model) VALUES
-  (1,  '0812345678', 'Tesla Model 3'),           -- cust_id 1
-  (2,  '0898765432', 'Nissan Leaf'),              -- cust_id 2
-  (3,  '0823456789', 'Hyundai Kona Electric'),    -- cust_id 3
-  (4,  '0832109876', 'MG ZS EV'),                -- cust_id 4
-  (5,  '0845551212', 'BMW i3'),                   -- cust_id 5
-  (6,  '0903334444', 'BYD Atto 3');              -- cust_id 6
+INSERT INTO customers (user_id, car_model) VALUES
+  (1,  'Tesla Model 3'),           -- cust_id 1
+  (2,  'Nissan Leaf'),              -- cust_id 2
+  (3,  'Hyundai Kona Electric'),    -- cust_id 3
+  (4,  'MG ZS EV'),                -- cust_id 4
+  (5,  'BMW i3'),                   -- cust_id 5
+  (6,  'BYD Atto 3');              -- cust_id 6
 
 -- -------------------------------------------------------------
 -- 2b. MANAGERS
 -- -------------------------------------------------------------
-INSERT INTO managers (user_id, phone, tax_id) VALUES
-  (7,  '0912345678', '1234567890123'),   -- manager_id 1  (Anan)
-  (8,  '0898765432', '3210987654321'),   -- manager_id 2  (Siriporn)
-  (9,  '0865551212', '5678012345679'),   -- manager_id 3  (Kittisak)
-  (10, '0921112223', '7890123456784');   -- manager_id 4  (Waraporn)
+INSERT INTO managers (user_id, tax_id) VALUES
+  (7,  '1234567890123'),   -- manager_id 1  (Anan)
+  (8,  '3210987654321'),   -- manager_id 2  (Siriporn)
+  (9,  '5678012345679'),   -- manager_id 3  (Kittisak)
+  (10, '7890123456784');   -- manager_id 4  (Waraporn)
 
 -- -------------------------------------------------------------
 -- 3. CHARGER TYPES  (7 types, ordered by connector then power)

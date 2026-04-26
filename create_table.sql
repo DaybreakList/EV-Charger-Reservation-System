@@ -7,20 +7,19 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL
         CHECK (role IN ('customer', 'manager')),
+    phone VARCHAR(20) UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
- 
+
 CREATE TABLE customers (
     cust_id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-    phone VARCHAR(20) UNIQUE,
     car_model VARCHAR(100)
 );
- 
+
 CREATE TABLE managers (
     manager_id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-    phone VARCHAR(20) UNIQUE,
     tax_id VARCHAR(50) UNIQUE
 );
  

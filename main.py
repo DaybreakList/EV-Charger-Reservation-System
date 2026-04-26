@@ -135,26 +135,26 @@ def register_customer(user_data: schemas.UserCreate, cust_data: schemas.Customer
     try:
         # -- Record User and pull back User (INSERT and RETURNING) -- #
         sql_user = text("""
-            INSERT INTO users (first_name, last_name, email, password, role)
-            VALUES (:fname, :lname, :email, :pwd, 'customer')
+            INSERT INTO users (first_name, last_name, email, password, role, phone)
+            VALUES (:fname, :lname, :email, :pwd, 'customer', :phone)
             RETURNING user_id
         """)
         result = db.execute(sql_user, {
             "fname": user_data.first_name,
             "lname": user_data.last_name,
             "email": user_data.email,
-            "pwd": bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            "pwd": bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+            "phone": user_data.phone,
         })
         new_user_id = result.fetchone()[0]
 
         # -- Record Customer -- #
         sql_cust = text("""
-            INSERT INTO customers (user_id, phone, car_model)
-            VALUES (:uid, :phone, :car)
+            INSERT INTO customers (user_id, car_model)
+            VALUES (:uid, :car)
         """)
         db.execute(sql_cust, {
             "uid": new_user_id,
-            "phone": cust_data.phone,
             "car": cust_data.car_model
         })
         db.commit()
@@ -182,26 +182,26 @@ def register_manager(user_data: schemas.UserCreate, mgr_data: schemas.ManagerCre
     try:
         # -- Record User -- #
         sql_user = text("""
-            INSERT INTO users (first_name, last_name, email, password , role)
-            VALUES (:fname, :lname , :email, :pwd, 'manager')
+            INSERT INTO users (first_name, last_name, email, password, role, phone)
+            VALUES (:fname, :lname, :email, :pwd, 'manager', :phone)
             RETURNING user_id
         """)
         result = db.execute(sql_user, {
             "fname": user_data.first_name,
             "lname": user_data.last_name,
             "email": user_data.email,
-            "pwd": bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            "pwd": bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+            "phone": user_data.phone,
         })
         new_user_id = result.fetchone()[0]
 
         # -- Record Manager -- #
         sql_mgr = text("""
-            INSERT INTO managers (user_id, phone, tax_id)
-            VALUES (:uid, :phone, :tax_id)
+            INSERT INTO managers (user_id, tax_id)
+            VALUES (:uid, :tax_id)
         """)
         db.execute(sql_mgr, {
             "uid": new_user_id,
-            "phone": mgr_data.phone,
             "tax_id": mgr_data.tax_id
         })
         db.commit()
@@ -222,7 +222,7 @@ def get_customer_profile(cust_id: int, db: Session = Depends(get_db)):
             u.last_name,
             u.email,
             u.role,
-            c.phone,
+            u.phone,
             c.car_model
         FROM customers c
         JOIN users u ON c.user_id = u.user_id
@@ -243,7 +243,7 @@ def get_manager_profile(manager_id: int, db: Session = Depends(get_db)):
             u.last_name,
             u.email,
             u.role,
-            m.phone,
+            u.phone,
             m.tax_id
         FROM managers m
         JOIN users u ON m.user_id = u.user_id

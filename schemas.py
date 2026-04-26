@@ -22,6 +22,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    phone: str
 
 class User(UserBase):
     user_id: int
@@ -30,13 +31,11 @@ class User(UserBase):
 
 # -- Customer Schemas -- #
 class CustomerCreate(BaseModel):
-    phone: str
     car_model: str
 
 class Customer(BaseModel):
     cust_id: int
     user_id: int
-    phone: str
     car_model: str
     class Config:
         from_attributes = True
@@ -55,7 +54,6 @@ class CustomerProfile(BaseModel):
 
 # -- Manager Schemas -- #
 class ManagerCreate(BaseModel):
-    phone: str
     tax_id: str
     invite_code: str
 
@@ -76,13 +74,12 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    phone: Optional[str] = None
 
 class CustomerUpdate(BaseModel):
-    phone: Optional[str] = None
     car_model: Optional[str] = None
 
 class ManagerUpdate(BaseModel):
-    phone: Optional[str] = None
     tax_id: Optional[str] = None
 
 # -- Station Schemas -- #

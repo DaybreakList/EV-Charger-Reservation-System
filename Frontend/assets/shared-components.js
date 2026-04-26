@@ -288,7 +288,7 @@
        role         — 'customer' | 'manager'
        onClose, onSaved(message) callbacks.
      Pulls api.updateUser + api.updateCustomer/updateManager from
-     window.EVApi so it has no extra deps from the caller.
+     window.EVApi. phone is updated via updateUser (lives in users table).
   */
   function ProfileEditModal({ profile, role, onClose, onSaved }) {
     const { api, auth } = window.EVApi;
@@ -319,15 +319,14 @@
           first_name: form.first_name.trim(),
           last_name:  form.last_name.trim(),
           email:      form.email.trim(),
+          phone:      form.phone.trim(),
         });
         if (role === 'manager') {
           await api.updateManager(auth.managerId(), {
-            phone:  form.phone.trim(),
             tax_id: form.tax_id.trim(),
           });
         } else {
           await api.updateCustomer(auth.custId(), {
-            phone:     form.phone.trim(),
             car_model: form.car_model.trim(),
           });
         }
