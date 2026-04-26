@@ -371,8 +371,7 @@ def get_nearby_stations(lat: float, lng: float, db: Session = Depends(get_db)):
     query = text("""
         SELECT station_id, name, address, status, latitude, longitude
         FROM stations
-        WHERE status = 'Active'
-        AND latitude IS NOT NULL AND longitude IS NOT NULL
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
     """)
     stations = db.execute(query).mappings().all()
     if not stations:
