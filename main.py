@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+if GOOGLE_MAPS_API_KEY is None:
+    raise ValueError("Google Maps API is not found.")
 
 TZ_BANGKOK = ZoneInfo("Asia/Bangkok")
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -31,15 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-'''
-# Not use? #
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-'''
 
 def auto_complete_bookings():
     db = SessionLocal()
