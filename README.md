@@ -129,9 +129,9 @@ Full schema: [`create_table.sql`](create_table.sql)
 | POST | `/register/manager/` | Register a new manager (invite code required) |
 | GET | `/customers/{id}` | Get customer profile |
 | GET | `/managers/{id}` | Get manager profile |
-| PATCH | `/users/{id}` | Update name / email |
-| PATCH | `/customers/{id}` | Update phone / car model |
-| PATCH | `/managers/{id}` | Update phone / tax ID |
+| PATCH | `/users/{id}` | Update name / email / phone |
+| PATCH | `/customers/{id}` | Update car model |
+| PATCH | `/managers/{id}` | Update tax ID |
 | GET | `/stations` | List all stations |
 | GET | `/stations/nearby` | Nearby stations (Google Distance Matrix) |
 | GET | `/managers/{id}/stations` | Manager's stations |
@@ -158,9 +158,9 @@ Full schema: [`create_table.sql`](create_table.sql)
 EV-Charger-Reservation-System/
 ├── main.py                  # FastAPI app, all endpoints
 ├── schemas.py               # Pydantic request/response models
-├── models.py                # SQLAlchemy ORM models (reference only)
 ├── database.py              # DB connection
 ├── create_table.sql         # Database schema
+├── insert_data.sql          # Sample test data
 ├── requirements.txt
 ├── .env                     # DATABASE_URL, GOOGLE_MAPS_API_KEY (not committed)
 └── Frontend/
