@@ -107,9 +107,9 @@ Open `http://127.0.0.1:5500/pages/login/index.html` to start.
 
 | Table | Key Columns |
 |---|---|
-| `users` | user_id, first_name, last_name, email, password, role (`customer` \| `manager`) |
-| `customers` | cust_id, user_id FK, phone, car_model |
-| `managers` | manager_id, user_id FK, phone, tax_id |
+| `users` | user_id, first_name, last_name, email, password, role (`customer` \| `manager`), phone |
+| `customers` | cust_id, user_id FK, car_model |
+| `managers` | manager_id, user_id FK, tax_id |
 | `stations` | station_id, manager_id FK, name, address, latitude, longitude, status (`Active` \| `Inactive`) |
 | `charger_types` | type_id, type_name, max_power_kw, charging_standard (`AC` \| `DC`) |
 | `chargers` | charger_id, station_id FK, type_id FK, rate_per_kwh, status (`Available` \| `Out of Service`) |
