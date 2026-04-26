@@ -8,6 +8,14 @@ const { useState, useEffect, useMemo } = React;
 const { BrandMark, Ico, BottomNav } = window.EVShared;
 const { api, auth } = window.EVApi;
 
+/* ---------- Helpers ---------- */
+function getInitials(name) {
+  if (!name) return '··';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 /* Backend status casing → lowercase tokens used by chips/CSS. */
 function normaliseBooking(b) {
   return {
@@ -421,6 +429,7 @@ function App() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [payingFor, setPayingFor] = useState(null);
+  const [profile, setProfile]     = useState(null);
 
   async function reload() {
     const custId = auth.custId();
@@ -444,6 +453,18 @@ function App() {
   }
 
   useEffect(() => { reload(); }, []);
+
+  useEffect(() => {
+    const custId    = auth.custId();
+    const managerId = auth.managerId();
+    const role      = auth.role() || 'customer';
+    const promise   = role === 'manager' && managerId
+      ? api.getManagerProfile(managerId)
+      : custId
+        ? api.getCustomerProfile(custId)
+        : Promise.resolve(null);
+    promise.then(p => setProfile(p)).catch(() => setProfile(null));
+  }, []);
 
   const filtered = useMemo(() => {
     const sorted = [...bookings].sort((a, b) => new Date(b.startIso) - new Date(a.startIso));
@@ -481,7 +502,9 @@ function App() {
             <BrandMark />
             <span>EV Charger</span>
           </a>
-          <div className="avatar" role="button" aria-label="Account">JD</div>
+          <a className="avatar" href="../profile/index.html" aria-label="Account">
+            {getInitials(profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '')}
+          </a>
         </header>
 
         <section className="hero reveal">
