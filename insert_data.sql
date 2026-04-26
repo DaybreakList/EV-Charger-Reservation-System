@@ -7,6 +7,8 @@
 --   →  4. stations  →  5. chargers
 -- =============================================================
 
+-- NOTE: This isn't include bookings and payments table. They'll get create via User Interface while demonstration.
+
 BEGIN;
 
 -- -------------------------------------------------------------
