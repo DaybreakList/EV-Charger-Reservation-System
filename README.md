@@ -177,7 +177,7 @@ Frontend (MPA, CDN React)
 | `stations` | station_id, manager_id FK, name, address, latitude, longitude, status (`Active` \| `Inactive`) |
 | `charger_types` | type_id, type_name, max_power_kw, charging_standard (`AC` \| `DC`) |
 | `chargers` | charger_id, station_id FK, type_id FK, rate_per_kwh, status (`Available` \| `Out of Service`) |
-| `bookings` | booking_id, cust_id FK, charger_id FK, start_time, end_time, total_kwh, booking_status (`Pending` \| `Confirmed` \| `Completed` \| `Cancelled`), rate_per_kwh_snapshot |
+| `bookings` | booking_id, cust_id FK, charger_id FK, start_time, end_time, total_kwh, booking_status (`Pending` \| `Completed` \| `Cancelled`), rate_per_kwh_snapshot |
 | `payments` | booking_id PK FK, amount, payment_method, payment_status, payment_date |
 
 Full schema: [`create_table.sql`](create_table.sql)
