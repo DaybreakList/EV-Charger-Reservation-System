@@ -190,4 +190,11 @@ EV-Charger-Reservation-System/
 
 ---
 
-*University project — Computer Engineering*
+*University project — Computer Engineering | CN230 Database*
+## Team Memebers
+```
+กิตติกานต์  เมธีกุลสุเมธ  ──  6710615037
+ณพัฐกรภ์  จิรานนท์อัครโชค  ──  6710615078
+ภูริภัทร  สายเนตร  ──  6710615193
+รวีโรจน์  มานะคิด  ──  6710615227
+```
