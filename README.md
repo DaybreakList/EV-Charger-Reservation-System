@@ -4,7 +4,20 @@ A full-stack web application that allows EV owners to discover nearby charging s
 
 ---
 
-## Tech Stack
+## Team Members
+
+| Student ID | Name |
+|---|---|
+| 6710615037 | กิตติกานต์ เมธีกุลสุเมธ |
+| 6710615078 | ณพัฐกรภ์ จิรานนท์อัครโชค |
+| 6710615193 | ภูริภัทร สายเนตร |
+| 6710615227 | รวีโรจน์ มานะคิด |
+
+CN230 Database · Computer Engineering
+
+---
+
+## Technologies Used
 
 | Layer | Technology |
 |---|---|
@@ -12,7 +25,7 @@ A full-stack web application that allows EV owners to discover nearby charging s
 | **Database** | PostgreSQL (hosted on Supabase) |
 | **Auth** | JWT (python-jose) · bcrypt |
 | **Scheduler** | APScheduler |
-| **Frontend** | Vanilla HTML · React (CDN / Babel) |
+| **Frontend** | HTML · CSS · JavaScript · React (CDN / Babel) |
 | **Maps** | Google Maps JS API · Distance Matrix API |
 
 ---
@@ -38,13 +51,111 @@ A full-stack web application that allows EV owners to discover nearby charging s
 
 ---
 
+## Quick Start for Evaluators
+
+> The database is already provisioned on Supabase and pre-loaded with test data.  
+> A `.env` file containing all required credentials will be provided separately — no database setup is needed.
+
+**Steps:**
+
+1. Place the provided `.env` file in the project root
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Start the backend:
+   ```bash
+   uvicorn main:app --reload
+   ```
+4. Open the frontend — serve `Frontend/` with either option below, then navigate to `http://127.0.0.1:5500/pages/login/index.html`
+
+That's all. Test accounts are available in the `.env` file or can be registered directly through the application.
+
+---
+
+## Full Installation (for Developers)
+
+> This section is for developers who want to run the project with their own database instance.  
+> Sample SQL files for creating tables and loading test data are provided.
+
+### Prerequisites
+
+- Python 3.10+
+- A Supabase project (PostgreSQL)
+- Google Maps API key (Distance Matrix API enabled)
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/<your-org>/EV-Charger-Reservation-System.git
+cd EV-Charger-Reservation-System
+```
+
+### 2. Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configure environment variables
+
+Create a `.env` file in the project root:
+
+```env
+DATABASE_URL=postgresql://user:password@host:port/dbname
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string (from Supabase) |
+| `GOOGLE_MAPS_API_KEY` | Google Maps API key with Distance Matrix enabled |
+
+### 4. Set up the database
+
+Run [`create_table.sql`](create_table.sql) against your Supabase instance to create all tables, then optionally run [`insert_data.sql`](insert_data.sql) to load sample test data.
+
+---
+
+## Running the System
+
+### Start the Backend
+
+```bash
+uvicorn main:app --reload
+```
+
+The API will be available at `http://localhost:8000`  
+Interactive API docs: `http://localhost:8000/docs`
+
+### Start the Frontend
+
+No build step required. Serve the `Frontend/` directory with any static file server:
+
+**Option A — Python built-in server** (no extra installation needed)
+```bash
+cd Frontend
+python -m http.server 5500
+```
+
+**Option B — VS Code Live Server** (requires installing the [Live Server extension](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) in VS Code first)
+```
+1. Install "Live Server" by Ritwick Dey from the VS Code Extensions panel
+2. Right-click Frontend/pages/login/index.html
+3. Select "Open with Live Server"
+```
+
+Open `http://127.0.0.1:5500/pages/login/index.html` to start.
+
+---
+
 ## Architecture
 
 ```
 Frontend (MPA, CDN React)
-│   ├── assets/config.js          → window.EV_CONFIG  (API base URL, Maps key)
-│   ├── assets/api.js             → window.EVApi       (all HTTP calls)
-│   └── assets/shared-components.js → window.EVShared (reusable React components)
+│   ├── assets/config.js             → window.EV_CONFIG  (API base URL, Maps key)
+│   ├── assets/api.js                → window.EVApi      (all HTTP calls via fetch)
+│   └── assets/shared-components.js → window.EVShared   (reusable React components)
 │
 └──► Backend (FastAPI · localhost:8000)
         └──► PostgreSQL on Supabase
@@ -53,53 +164,6 @@ Frontend (MPA, CDN React)
 - JWT is stored in `localStorage` (`ev_token`, `ev_role`, `ev_cust_id`, `ev_manager_id`)
 - Booking slots are fixed 45-minute blocks aligned to multiples of 45 min from midnight (Asia/Bangkok)
 - APScheduler runs every minute to auto-complete expired bookings and calculate `total_kwh`
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-- A Supabase project (PostgreSQL)
-- Google Maps API key (Distance Matrix enabled)
-
-### Backend Setup
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/<your-org>/EV-Charger-Reservation-System.git
-cd EV-Charger-Reservation-System
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Create a .env file
-cp .env.example .env
-# Fill in DATABASE_URL and GOOGLE_MAPS_API_KEY
-
-# 4. Initialise the database
-# Run the SQL in create_table.sql against your Supabase instance
-
-# 5. Start the server
-uvicorn main:app --reload
-```
-
-The API will be available at `http://localhost:8000`.  
-Interactive docs: `http://localhost:8000/docs`
-
-### Frontend Setup
-
-No build step required. Serve the `Frontend/` directory with any static file server, e.g.:
-
-```bash
-# Using VS Code Live Server (port 5500) — recommended during development
-# Or with Python's built-in server:
-cd Frontend
-python -m http.server 5500
-```
-
-Open `http://127.0.0.1:5500/pages/login/index.html` to start.
 
 ---
 
@@ -113,7 +177,7 @@ Open `http://127.0.0.1:5500/pages/login/index.html` to start.
 | `stations` | station_id, manager_id FK, name, address, latitude, longitude, status (`Active` \| `Inactive`) |
 | `charger_types` | type_id, type_name, max_power_kw, charging_standard (`AC` \| `DC`) |
 | `chargers` | charger_id, station_id FK, type_id FK, rate_per_kwh, status (`Available` \| `Out of Service`) |
-| `bookings` | booking_id, cust_id FK, charger_id FK, start_time, end_time, total_kwh, booking_status, rate_per_kwh_snapshot |
+| `bookings` | booking_id, cust_id FK, charger_id FK, start_time, end_time, total_kwh, booking_status (`Pending` \| `Confirmed` \| `Completed` \| `Cancelled`), rate_per_kwh_snapshot |
 | `payments` | booking_id PK FK, amount, payment_method, payment_status, payment_date |
 
 Full schema: [`create_table.sql`](create_table.sql)
@@ -165,9 +229,9 @@ EV-Charger-Reservation-System/
 ├── .env                     # DATABASE_URL, GOOGLE_MAPS_API_KEY (not committed)
 └── Frontend/
     ├── assets/
-    │   ├── api.js           # Centralised API client (window.EVApi)
+    │   ├── api.js                # Centralised API client (window.EVApi)
     │   ├── shared-components.js  # Shared React components (window.EVShared)
-    │   └── config.js        # App config (window.EV_CONFIG)
+    │   └── config.js             # App config (window.EV_CONFIG)
     └── pages/
         ├── login/
         ├── registration/
@@ -177,24 +241,4 @@ EV-Charger-Reservation-System/
         ├── profile/
         ├── manager-dashboard/
         └── charger-management/
-```
-
----
-
-## Environment Variables
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string (from Supabase) |
-| `GOOGLE_MAPS_API_KEY` | Google Maps API key with Distance Matrix enabled |
-
----
-
-*University project — Computer Engineering | CN230 Database*
-## Team Memebers
-```
-กิตติกานต์  เมธีกุลสุเมธ  ──  6710615037
-ณพัฐกรภ์  จิรานนท์อัครโชค  ──  6710615078
-ภูริภัทร  สายเนตร  ──  6710615193
-รวีโรจน์  มานะคิด  ──  6710615227
 ```
