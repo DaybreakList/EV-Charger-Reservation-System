@@ -69,7 +69,7 @@ CN230 Database · Computer Engineering
    ```
 4. Open the frontend — serve `Frontend/` with either option below, then navigate to `http://127.0.0.1:5500/pages/login/index.html`
 
-That's all. Test accounts are available in the `.env` file or can be registered directly through the application.
+That's all. Test account credentials (email and password) are listed in [`test_subject.txt`](test_subject.txt).
 
 ---
 
